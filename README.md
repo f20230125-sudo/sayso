@@ -4,7 +4,26 @@ Say what you need, and the screen builds itself.
 
 Sayso is a service desk for a made-up airline. You type what you want in your own words ("give me a window seat on my London flight") and, instead of a wall of text, the reply is built from working pieces of interface: a seat map, a price, a receipt.
 
+Live: https://sayso-sigma.vercel.app
+
 It is being built in stages. This README grows with it.
+
+## What you can ask for
+
+Eight journeys, in your own words, several in one sentence if you like:
+
+| Journey | Try saying |
+| --- | --- |
+| See my trips | "Show my trips" |
+| Flight status | "Is my flight on time?" |
+| Change a flight | "Move my London flight to next week" |
+| Choose a seat | "Give me a window seat" |
+| Add bags | "Add two bags to my Istanbul flight" |
+| Check in | "Check me in" |
+| Cancel and refund | "Cancel my Istanbul trip" |
+| Book a flight | "Book a flight to Paris next Friday" |
+
+"Move my London flight to next week, window seat, and add a bag" is one request: three journeys, one price, one payment. Anything a component asks can also be typed ("the cheapest", "14A", "yes"), and a change of mind partway ("aisle instead") changes the journey in place instead of starting again.
 
 ## How it works
 
@@ -30,6 +49,7 @@ The airline keeps no database. Flights, prices and free seats are worked out fro
 | GET | `/api/flights?from=DXB&to=LHR&date=2026-10-15` | Every flight on that route that day |
 | GET | `/api/flights/calendar?from=DXB&to=LHR&start=2026-10-12&days=14` | The cheapest fare on each day |
 | GET | `/api/flights/:id/seats` | The cabin of one flight, with taken seats marked |
+| GET | `/api/flights/:id/status?at=2026-10-06T10:30:00Z` | Where one flight stands at a moment: late or not, gate, steps to landing |
 | POST | `/api/quotes` | What a list of changes to a booking would cost |
 | POST | `/api/orders` | The booking after the changes, and a receipt |
 | GET | `/api/health` | `{ status: "ok" }` |
@@ -50,6 +70,7 @@ npm run lint
 npm run typecheck
 npm test
 npm run build
+npm run e2e        # Playwright, against the dev server
 ```
 
 ## Layout

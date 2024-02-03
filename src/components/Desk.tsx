@@ -24,7 +24,13 @@ import { IconButton } from "./ui";
 /** What the input suggests while a component waits: the same answer can be typed. */
 const WAITING_HINTS: Partial<Record<WidgetType, string>> = {
   "trip-chooser": 'Pick a trip above, or name it: "the London one"',
+  "flight-search": 'Fill it in above, or say it: "Paris next Friday"',
+  "date-strip": 'Pick a day above, or name one: "Thursday"',
+  "flight-list": 'Pick a flight above, or say "the earliest" or "the cheapest"',
   "seat-map": 'Pick a seat above, or type one: "14A"',
+  "bag-stepper": 'Choose above, or say how many: "two"',
+  "passenger-check": "Tick both boxes above to check in",
+  refund: 'Confirm above, or say "yes". Say "never mind" to keep the booking',
   "price-summary": 'Confirm above, or say "yes"',
 };
 
@@ -79,7 +85,7 @@ function Welcome({ account, today, onAsk }: { account: Account; today: string; o
 
       <div className="rise-in" style={{ animationDelay: "120ms" }}>
         <div className="eyebrow mb-2.5">Try asking</div>
-        <Suggestions tries={suggestions(account, today)} onAsk={onAsk} />
+        <Suggestions tries={suggestions(account, today, new Date())} onAsk={onAsk} />
       </div>
     </div>
   );
@@ -100,7 +106,12 @@ export function Desk() {
   const end = useRef<HTMLDivElement>(null);
   const progress = `${turns.length}:${last?.run?.at ?? 0}:${last?.run?.status ?? ""}:${last?.marks.length ?? 0}`;
   useEffect(() => {
-    if (turns.length > 0) end.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    if (turns.length === 0) return;
+    const scroll = () => end.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    scroll();
+    // Once more after a component has finished folding, which changes the height.
+    const settled = setTimeout(scroll, 480);
+    return () => clearTimeout(settled);
     // `progress` stands for everything that makes the page longer.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [progress]);

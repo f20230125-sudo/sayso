@@ -12,15 +12,15 @@ export default defineConfig({
   use: {
     baseURL: "http://localhost:3030",
     trace: "retain-on-failure",
+    // The demo trips are dated from "today" on the visitor's own clock, and
+    // check-in opens by the hour. One fixed zone keeps a test the same on a
+    // laptop in Dubai and on a CI machine in UTC.
+    timezoneId: "Asia/Dubai",
   },
   projects: [
     {
       name: "chromium",
-      use: {
-        ...devices["Desktop Chrome"],
-        viewport: { width: 1440, height: 900 },
-        permissions: ["clipboard-read", "clipboard-write"],
-      },
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 900 } },
     },
   ],
   webServer: {

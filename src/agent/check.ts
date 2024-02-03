@@ -1,4 +1,6 @@
-import type { OrderResult, Quote, SeatKind } from "@/airline/schema";
+import { shortDay } from "@/airline/dates";
+import { cityOf } from "@/airline/places";
+import type { Flight, OrderResult, Quote, SeatKind } from "@/airline/schema";
 import { seatPhrase } from "@/airline/seats";
 import { money } from "@/widgets/specs";
 import type { Check, Expectation, RunState } from "./types";
@@ -21,6 +23,7 @@ type SeatAnswer = { seat: string; kinds: SeatKind[]; price: number };
 
 function check(expectation: Expectation, run: RunState): Check | null {
   const order = run.results.order as OrderResult | undefined;
+  const flightAt = (step: string) => (run.results[step] as { flight: Flight } | undefined)?.flight;
 
   switch (expectation.kind) {
     case "seat-kind": {
@@ -39,6 +42,54 @@ function check(expectation: Expectation, run: RunState): Check | null {
       if (!picked || !order) return null;
       const pass = order.booking.seat === picked.seat;
       return { pass, label: pass ? `Your booking now shows seat ${picked.seat}.` : `Your booking shows seat ${order.booking.seat ?? "none"}, not ${picked.seat}.` };
+    }
+    case "date-within": {
+      const flight = flightAt(expectation.flightStep);
+      if (!flight) return null;
+      const { from, to } = expectation;
+      const pass = flight.date >= from && flight.date <= to;
+      const asked = from === to ? `to fly on ${shortDay(from)}` : `for a day from ${shortDay(from)} to ${shortDay(to)}`;
+      return {
+        pass,
+        label: pass
+          ? `You asked ${asked}. ${flight.number} leaves on ${shortDay(flight.date)}.`
+          : `You asked ${asked}, and picked ${flight.number} on ${shortDay(flight.date)}, which is outside that.`,
+      };
+    }
+    case "flight-on-booking": {
+      const flight = flightAt(expectation.flightStep);
+      if (!flight || !order) return null;
+      const pass = order.booking.flight.id === flight.id;
+      return {
+        pass,
+        label: pass
+          ? `Your booking is now on ${flight.number}, ${shortDay(flight.date)} at ${flight.departs}.`
+          : `Your booking is on ${order.booking.flight.number}, not ${flight.number}.`,
+      };
+    }
+    case "goes-to": {
+      const flight = flightAt(expectation.flightStep);
+      if (!flight) return null;
+      const pass = flight.to === expectation.place || flight.from === expectation.place;
+      const city = cityOf(expectation.place);
+      return { pass, label: pass ? `You asked for ${city}. ${flight.number} flies there.` : `You asked for ${city}, and ${flight.number} flies to ${flight.toCity}.` };
+    }
+    case "bags-on-booking": {
+      const picked = run.results[expectation.bagsStep] as { count: number } | undefined;
+      if (!picked || !order) return null;
+      const pass = order.booking.bags === picked.count;
+      const has = `${order.booking.bags} checked ${order.booking.bags === 1 ? "bag" : "bags"}`;
+      return { pass, label: pass ? `Your booking now has ${has}.` : `Your booking has ${has}, not ${picked.count}.` };
+    }
+    case "checked-in": {
+      if (!order) return null;
+      const pass = order.booking.checkedIn;
+      return { pass, label: pass ? `You are checked in for ${order.booking.flight.number}.` : `You are not checked in for ${order.booking.flight.number}.` };
+    }
+    case "cancelled": {
+      if (!order) return null;
+      const pass = order.booking.status === "cancelled";
+      return { pass, label: pass ? `Booking ${order.booking.code} is cancelled.` : `Booking ${order.booking.code} is still active.` };
     }
     case "charged-as-quoted": {
       const quote = run.results.quote as Quote | undefined;

@@ -21,7 +21,7 @@ export function AskBar({ busy, hint, onAsk, onStop }: Props) {
 
   return (
     <form
-      className="flex items-center gap-2 rounded-2xl border border-line bg-surface p-2 pl-4 shadow-lift transition-colors focus-within:border-line-strong"
+      className="ring-within flex items-center gap-2 rounded-2xl border border-line bg-surface p-2 pl-4 shadow-lift transition-[border-color,box-shadow]"
       onSubmit={(event) => {
         event.preventDefault();
         if (!canSend) return;
@@ -39,7 +39,7 @@ export function AskBar({ busy, hint, onAsk, onStop }: Props) {
         autoComplete="off"
         enterKeyHint="send"
         maxLength={300}
-        className="h-10 min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-faint"
+        className="ring-on-parent h-10 min-w-0 flex-1 bg-transparent text-[15px] placeholder:text-faint"
       />
       {busy ? (
         <button
