@@ -3,6 +3,7 @@ import { HOME, cityOf, placesIn } from "@/airline/places";
 import type { Booking, Flight, SeatKind, SeatMap } from "@/airline/schema";
 import { findSeat } from "@/airline/seats";
 import { matchTrips } from "../plan";
+import { FACTS, type FactName } from "../talk";
 import type { Context, DateWish, Intent, Json, TripRef, Understanding } from "../types";
 import { findDates, numberFrom, type FoundDate } from "./dates";
 
@@ -324,6 +325,20 @@ function detailFor(active: NonNullable<Context["active"]>, text: string, context
   return [];
 }
 
+// "How much is a bag?" asks what something costs. It does not ask for one.
+const ASKS_ABOUT = /^(how much|how many|what does|what do|what is the (price|cost|fee|charge)|what's the (price|cost|fee|charge)|what are the|does it cost|is there a (fee|charge))\b/;
+
+/** The fact that answers a question about cost or rules, when the rules have one. */
+function factFor(text: string): FactName | null {
+  if (BAGS.test(text) || /\b(carry[- ]on|cabin bag|kg|weigh)/.test(text)) return "bags";
+  if (SEAT.test(text)) return "seats";
+  if (CANCEL.test(text)) return "cancel";
+  if (CHANGE.test(text)) return "change";
+  if (CHECK_IN.test(text)) return "checkIn";
+  if (/\b(bag drop|boarding|gate)\b/.test(text)) return "airport";
+  return null;
+}
+
 export function understandByRules(words: string, context: Context): Understanding {
   const text = normalise(words);
   if (text === "") return { kind: "unknown" };
@@ -331,6 +346,12 @@ export function understandByRules(words: string, context: Context): Understandin
   if (context.active) {
     const answer = answerTo(context.active, text, context);
     if (answer) return answer;
+  }
+
+  if (ASKS_ABOUT.test(text)) {
+    // A question the rules have no fact for is left for a model, if there is one.
+    const fact = factFor(text);
+    return fact ? { kind: "say", text: FACTS[fact] } : { kind: "unknown" };
   }
 
   let intents = intentsOf(text, context);

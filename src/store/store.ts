@@ -9,10 +9,12 @@ import {
 import { accountReducer } from "./accountSlice";
 import { conversationReducer } from "./conversationSlice";
 import { save, type KeyValueStore } from "./persist";
+import { settingsReducer } from "./settingsSlice";
 
 const rootReducer = combineReducers({
   account: accountReducer,
   conversation: conversationReducer,
+  settings: settingsReducer,
 });
 
 export type RootState = ReturnType<typeof rootReducer>;
@@ -43,7 +45,7 @@ export function makeStore(extra: Extra) {
   // Save shortly after the account or the conversation stops changing. Each
   // change cancels the wait of the one before, so a burst leads to one save.
   startListening({
-    predicate: (_action, state, previous) => state.account !== previous.account || state.conversation !== previous.conversation,
+    predicate: (_action, state, previous) => state.account !== previous.account || state.conversation.turns !== previous.conversation.turns,
     effect: async (_action, listener) => {
       listener.cancelActiveListeners();
       await listener.delay(SAVE_DELAY_MS);
