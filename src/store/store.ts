@@ -10,11 +10,13 @@ import { accountReducer } from "./accountSlice";
 import { conversationReducer } from "./conversationSlice";
 import { save, type KeyValueStore } from "./persist";
 import { settingsReducer } from "./settingsSlice";
+import { uiReducer } from "./uiSlice";
 
 const rootReducer = combineReducers({
   account: accountReducer,
   conversation: conversationReducer,
   settings: settingsReducer,
+  ui: uiReducer,
 });
 
 export type RootState = ReturnType<typeof rootReducer>;

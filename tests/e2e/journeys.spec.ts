@@ -111,7 +111,9 @@ test.describe("journeys", () => {
     await expect(page.getByRole("region", { name: "Refund" })).toBeVisible();
     await say(page, "never mind");
     await expect(page.getByText("Left unfinished. Nothing was changed.")).toBeVisible();
-    await expect(page.getByRole("button", { name: /^Cancel booking/ })).toBeDisabled();
+    // The refund that was on screen folds away: it can no longer be confirmed.
+    await expect(page.getByText("Not answered")).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Cancel booking/ })).toHaveCount(0);
     await say(page, "show my trips");
     await expect(page.getByText("You have 3 trips coming up.")).toBeVisible();
   });
