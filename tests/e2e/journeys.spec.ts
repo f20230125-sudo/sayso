@@ -11,15 +11,15 @@ test.describe("the desk", () => {
       "Check me in for Mumbai",
       "Is my flight on time?",
       "Book a flight to Paris next Friday",
-      "Show my trips",
+      "How much have I spent this year?",
     ]);
   });
 
   test("answers a suggestion that is clicked", async ({ page }) => {
     await openDesk(page);
-    await page.getByRole("button", { name: "Show my trips" }).click();
-    await expect(page.getByText("You have 3 trips coming up.")).toBeVisible();
-    await expect(page.getByRole("article")).toHaveCount(3);
+    await page.getByRole("button", { name: "Is my flight on time?" }).click();
+    await expect(page.getByText("JN 303 to Mumbai is on time, and check-in is open.")).toBeVisible();
+    await expect(page.getByRole("region", { name: "Status of JN 303" })).toBeVisible();
   });
 
   test("says so when it does not understand, and explains what it can do", async ({ page }) => {
@@ -188,6 +188,42 @@ test.describe("journeys", () => {
     await bags.getByRole("button", { name: "Add 2 bags" }).click();
     await expect(price(page)).toContainText("2 extra checked bags");
     await expect(price(page)).toContainText("AED 240");
+  });
+});
+
+test.describe("questions about your own account", () => {
+  test("are answered with figures and a chart worked out from the account", async ({ page }) => {
+    await openDesk(page);
+    await say(page, "How much have I spent this year?");
+    await expect(page.getByText(/^You have spent AED [\d,]+ on flights so far this year\.$/)).toBeVisible();
+
+    const card = page.getByRole("region", { name: "What you have spent this year" });
+    await expect(card.getByRole("term")).toHaveText(["Spent this year", "Payments", "Largest"]);
+    // One column a month, January to October, each readable without seeing the chart.
+    const columns = card.getByRole("list", { name: "Spending by month" }).getByRole("listitem");
+    await expect(columns).toHaveCount(10);
+    await expect(columns.last()).toContainText(/^Oct: AED [\d,]+/);
+
+    // The value of a column shows when it is pointed at or focused.
+    await columns.nth(8).focus();
+    await expect(columns.nth(8).getByText(/^Sep: /).last()).toBeVisible();
+
+    // Paying for something changes the answer, because it is worked out afresh.
+    const before = await card.getByRole("definition").first().innerText();
+    await say(page, "add two bags to my Istanbul flight");
+    await price(page).getByRole("button", { name: /^Pay/ }).click();
+    await expect(receipt(page)).toBeVisible();
+    await say(page, "how much have I spent this year?");
+    const after = page.getByRole("region", { name: "What you have spent this year" }).last().getByRole("definition").first();
+    await expect(after).not.toHaveText(before);
+  });
+
+  test("come as a table for payments, and a bar per route", async ({ page }) => {
+    await openDesk(page);
+    await say(page, "show my recent payments");
+    await expect(page.getByRole("table", { name: "Your latest payments" }).getByRole("row")).toHaveCount(9);
+    await say(page, "show my spending by route");
+    await expect(page.getByRole("list", { name: "Spending by route" }).getByRole("listitem").first()).toContainText("Dubai to");
   });
 });
 
