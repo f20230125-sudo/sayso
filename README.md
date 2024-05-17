@@ -198,7 +198,8 @@ scripts/            the README's screenshots and demo GIF
 ## Limits
 
 - Juno Air is made up. Nothing is really booked, charged or refunded.
-- The rules read English, and the common ways of asking. Unusual sentences need a model.
+- The rules read English, and the common ways of asking. They were measured three times on sentences written before the rules were tuned for them (`src/agent/understand/phrasings.test.ts`): 36 of 50 read correctly the first time, then 24 of 30, then 20 of 25. Expect about one fresh sentence in five to need a model, or to get "I did not understand that".
+- A sentence with a "not" in it is never taken as a request. "I can't go to Istanbul any more" holds the words of a request to fly there and means the opposite, so the desk asks what you would like done instead of guessing.
 - The account lives in one browser. The demo trips are dated from the day of the visit, so they are made afresh each day.
 - Each airport keeps one time offset all year. Daylight saving is ignored.
 - Voice input is the browser's own speech recognition. It is tested with a stand-in, because a test cannot talk; Firefox has none, so it shows no microphone.
