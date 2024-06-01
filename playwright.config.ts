@@ -28,5 +28,7 @@ export default defineConfig({
     url: "http://localhost:3030",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
+    // The tests fix the browser's clock (see tests/e2e/helpers.ts). The server's must agree.
+    env: { SAYSO_NOW: "2026-10-06T10:30:00+04:00" },
   },
 });
