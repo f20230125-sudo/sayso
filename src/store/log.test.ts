@@ -107,11 +107,12 @@ describe("exporting a turn", () => {
 
   it("writes out a whole journey: the words, the plan, each call, the answers, the checks and the times", async () => {
     const { turn, seat } = await wholeJourney();
-    const { format, version, app, data } = exportTurn(turn);
+    const { format, version, app, data } = exportTurn(turn, "2026-10-06T10:31:00.000Z");
 
     expect([format, version, app]).toEqual([ENVELOPE_FORMAT, ENVELOPE_VERSION, "sayso"]);
     expect(data).toMatchObject({ id: turn.id, words: "give me a window seat", brain: "rules", model: null, status: "done", failure: null, closing: null });
     expect(data.startedAt).toBe(turn.startedAt);
+    expect(data.exportedAt).toBe("2026-10-06T10:31:00.000Z");
     expect(data.intents.map((intent) => intent.journey)).toEqual(["Choose a seat"]);
 
     expect(data.calls.map((call) => [call.tool, call.method, call.status])).toEqual([
@@ -136,14 +137,14 @@ describe("exporting a turn", () => {
 
   it("is plain JSON, so it survives being sent or saved as a file", async () => {
     const { turn } = await wholeJourney();
-    const envelope = exportTurn(turn);
+    const envelope = exportTurn(turn, "2026-10-06T10:31:00.000Z");
     expect(JSON.parse(JSON.stringify(envelope))).toEqual(envelope);
   });
 
   it("writes out a turn that led to no run", async () => {
     const { store, last } = setup();
     await store.dispatch(ask("hello"));
-    const { data } = exportTurn(last());
+    const { data } = exportTurn(last(), "2026-10-06T10:31:00.000Z");
     expect(data).toMatchObject({ understanding: "chat", status: null, steps: [], calls: [], log: [], reply: "Hello. Say what you need and I will bring up the right screen for it." });
   });
 
@@ -151,6 +152,6 @@ describe("exporting a turn", () => {
     const { turn } = await wholeJourney();
     const big = structuredClone(turn);
     big.calls[0].result = { rows: "x".repeat(30_000) };
-    expect(exportTurn(big).data.calls[0].result).toEqual({ truncated: true, characters: expect.any(Number) });
+    expect(exportTurn(big, "2026-10-06T10:31:00.000Z").data.calls[0].result).toEqual({ truncated: true, characters: expect.any(Number) });
   });
 });
