@@ -86,7 +86,7 @@ test.describe("with a model", () => {
     await expect(page.getByRole("status").filter({ hasText: `Asking ${MODEL} what that means` })).toBeVisible();
 
     await page.getByRole("button", { name: "Stop" }).click();
-    await expect(page.getByRole("heading", { name: "Hello, Noor." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Hello, Uzair." })).toBeVisible();
     await expect(page.getByRole("button", { name: "Send" })).toBeVisible();
   });
 
