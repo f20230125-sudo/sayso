@@ -1,5 +1,16 @@
 import { z } from "zod";
-import { apiErrorSchema, bookingSchema, changeSchema, orderResultSchema, quoteSchema, seatMapSchema } from "@/airline/schema";
+import {
+  apiErrorSchema,
+  bookingSchema,
+  calendarDaySchema,
+  changeSchema,
+  flightSchema,
+  flightStatusSchema,
+  isoDateSchema,
+  orderResultSchema,
+  quoteSchema,
+  seatMapSchema,
+} from "@/airline/schema";
 import type { Deps, Failure, Json, ToolCall, ToolName } from "./types";
 
 // The calls a plan may make to the airline's API.
@@ -25,7 +36,27 @@ const tool = <A extends z.ZodType, R extends z.ZodType>(entry: {
 
 const orderArgs = z.object({ booking: bookingSchema.nullable(), changes: z.array(changeSchema).min(1) });
 
+const route = { from: z.string().regex(/^[A-Z]{3}$/), to: z.string().regex(/^[A-Z]{3}$/) };
+
 export const TOOLS: Record<ToolName, Tool> = {
+  calendar: tool({
+    description: "The lowest fare on each of a run of days, for one route.",
+    args: z.object({ ...route, start: isoDateSchema, days: z.number().int().min(1).max(31) }),
+    result: z.object({ days: z.array(calendarDaySchema) }),
+    request: ({ from, to, start, days }) => ({ method: "GET", url: `/api/flights/calendar?from=${from}&to=${to}&start=${start}&days=${days}` }),
+  }),
+  searchFlights: tool({
+    description: "Every flight on one route on one day.",
+    args: z.object({ ...route, date: isoDateSchema }),
+    result: z.object({ flights: z.array(flightSchema) }),
+    request: ({ from, to, date }) => ({ method: "GET", url: `/api/flights?from=${from}&to=${to}&date=${date}` }),
+  }),
+  status: tool({
+    description: "Where one flight stands at a moment: on time or late, the gate, and the steps to landing.",
+    args: z.object({ flightId: z.string(), at: z.string() }),
+    result: flightStatusSchema,
+    request: ({ flightId, at }) => ({ method: "GET", url: `/api/flights/${encodeURIComponent(flightId)}/status?at=${encodeURIComponent(at)}` }),
+  }),
   seatMap: tool({
     description: "The cabin of one flight, with taken seats marked.",
     args: z.object({ flightId: z.string() }),
