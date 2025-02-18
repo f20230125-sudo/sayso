@@ -36,7 +36,13 @@ export function apiFetch({ seen, intercept }: Options = {}): typeof fetch {
     // An aborted request never reaches a real server either.
     if (request.signal.aborted) throw new DOMException("The request was stopped.", "AbortError");
 
-    const early = await intercept?.(path, request);
+    // A real request that is stopped fails at once, however long the answer would have taken.
+    const stopped = new Promise<never>((_resolve, reject) => {
+      request.signal.addEventListener("abort", () => reject(new DOMException("The request was stopped.", "AbortError")), { once: true });
+    });
+    // Once an answer has come, a later stop has nobody left to tell.
+    stopped.catch(() => {});
+    const early = await Promise.race([Promise.resolve(intercept?.(path, request)), stopped]);
     if (early) return early;
 
     const seatsOf = /^\/api\/flights\/([^/]+)\/seats$/.exec(url.pathname);
