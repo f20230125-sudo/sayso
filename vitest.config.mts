@@ -1,6 +1,12 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 
+// "Today" and "is check-in open yet" depend on the clock's time zone. The
+// airline is in Dubai, so the tests run on Dubai time wherever they are run:
+// a laptop there, or a CI machine on UTC. The end-to-end tests do the same
+// (see playwright.config.ts).
+process.env.TZ = "Asia/Dubai";
+
 export default defineConfig({
   plugins: [react()],
   // Read the "@/..." import alias from tsconfig.json.

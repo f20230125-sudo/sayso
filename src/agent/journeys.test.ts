@@ -136,7 +136,7 @@ describe("planning the other journeys", () => {
     // At 10:30 on Tuesday, Thursday's 12:40 flight is still more than 48 hours off.
     expect(plan([{ journey: "check-in" }]).steps[0]).toMatchObject({ kind: "set", value: { booking: { code: "T5LW4H" } } });
 
-    const later = planFor([{ journey: "check-in" }], { today: TODAY, now: new Date(2026, 9, 6, 15, 0).toISOString(), account: account() });
+    const later = planFor([{ journey: "check-in" }], { today: TODAY, now: new Date("2026-10-06T15:00:00+04:00").toISOString(), account: account() });
     expect(later.steps[1]).toMatchObject({ widget: "trip-chooser", props: { bookings: [{ code: "T5LW4H" }, { code: "K7QM2P" }] } });
   });
 
