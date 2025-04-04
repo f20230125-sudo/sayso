@@ -4,6 +4,7 @@ import { Check, Minus } from "lucide-react";
 import { AnimatePresence, m } from "motion/react";
 import type { ComponentType } from "react";
 import type { Json } from "@/agent/reference";
+import { AnswerCard } from "./answer";
 import { BagStepper, DateStrip, FlightList, FlightSearch } from "./choosing";
 import { SeatMap } from "./SeatMap";
 import { PriceSummary, Receipt, TripChooser, Trips } from "./simple";
@@ -38,6 +39,7 @@ const VIEWS: { [T in WidgetType]: ComponentType<ViewProps<T>> } = {
   receipt: Receipt,
   "boarding-pass": BoardingPass,
   "status-timeline": StatusTimeline,
+  "answer-card": AnswerCard,
 };
 
 type HostProps = {

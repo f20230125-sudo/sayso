@@ -22,6 +22,10 @@
   --ok: #15803d;
   --warn: #b45309;
   --bad: #c81e1e;
+  /* The colour of a bar in a chart. Each theme has its own, checked against
+     that theme's surface for lightness and contrast. The dark one is a step
+     darker than the dark accent, which is too light to read as a filled bar. */
+  --series: #4f4fd1;
   --shadow: 0 1px 2px rgb(16 24 40 / 0.06), 0 4px 12px rgb(16 24 40 / 0.06);
   --shadow-lift: 0 1px 2px rgb(16 24 40 / 0.06), 0 12px 32px rgb(16 24 40 / 0.1);
 
@@ -43,6 +47,7 @@
   --ok: #3ddc97;
   --warn: #f5b942;
   --bad: #ff7b7b;
+  --series: #8585f2;
   --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 6px 16px rgb(0 0 0 / 0.35);
   --shadow-lift: 0 1px 2px rgb(0 0 0 / 0.4), 0 16px 40px rgb(0 0 0 / 0.5);
 
@@ -64,6 +69,7 @@
   --color-ok: var(--ok);
   --color-warn: var(--warn);
   --color-bad: var(--bad);
+  --color-series: var(--series);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --shadow-panel: var(--shadow);

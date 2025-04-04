@@ -24,6 +24,18 @@ import { describeSeat } from "@/airline/seats";
 // This file is plain TypeScript with no React in it, so the agent and the
 // server can read it. The components themselves are in registry.tsx.
 
+/** One part of an answer about the traveller's own account. Every number in it is worked out by code. */
+export const blockSchema = z.discriminatedUnion("kind", [
+  /** A few headline numbers. */
+  z.object({ kind: z.literal("figures"), figures: z.array(z.object({ label: z.string(), value: z.string(), note: z.string().optional() })).min(1).max(3) }),
+  /** Amounts over time, oldest first: one column each. */
+  z.object({ kind: z.literal("columns"), title: z.string(), rows: z.array(z.object({ label: z.string(), value: z.number(), text: z.string() })).min(1) }),
+  /** Amounts by category, largest first: one bar each. */
+  z.object({ kind: z.literal("bars"), title: z.string(), rows: z.array(z.object({ label: z.string(), value: z.number(), text: z.string() })).min(1) }),
+  z.object({ kind: z.literal("table"), title: z.string(), columns: z.array(z.string()).min(1), rows: z.array(z.array(z.string())).min(1) }),
+]);
+export type Block = z.infer<typeof blockSchema>;
+
 export type WidgetSpec = {
   title: string;
   /** What it is for, in a sentence a model or a person can use. */
@@ -143,6 +155,12 @@ export const WIDGETS = {
     title: "Flight status",
     description: "Where a flight stands: on time or late, the gate, and each step from check-in to landing.",
     props: z.object({ flight: flightSchema, status: flightStatusSchema }),
+    answer: null,
+  }),
+  "answer-card": spec({
+    title: "Answer",
+    description: "An answer to a question about the traveller's own account, laid out from figures, a chart and a table. Nothing to choose.",
+    props: z.object({ title: z.string(), blocks: z.array(blockSchema).min(1).max(3) }),
     answer: null,
   }),
 } satisfies Record<string, WidgetSpec>;

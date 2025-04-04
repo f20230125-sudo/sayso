@@ -7,7 +7,7 @@ import type { Understanding } from "./types";
 // The plain lines the desk says when there is nothing to show.
 
 export const CAN_DO =
-  "I can show your trips and a flight's status, move a flight, choose a seat, add bags, check you in, cancel a booking, or book a new flight.";
+  "I can show your trips and a flight's status, move a flight, choose a seat, add bags, check you in, cancel a booking, book a new flight, or tell you what you have spent.";
 
 export function chatReply(about: Extract<Understanding, { kind: "chat" }>["about"]): string {
   switch (about) {
@@ -38,6 +38,6 @@ export function suggestions(account: Account, today: IsoDate, now: Date): string
   if (open) tries.push(`Check me in for ${open.flight.toCity}`);
   if (trips.length > 0) tries.push("Is my flight on time?");
   tries.push("Book a flight to Paris next Friday");
-  if (trips.length > 0) tries.push("Show my trips");
+  tries.push("How much have I spent this year?");
   return tries;
 }
