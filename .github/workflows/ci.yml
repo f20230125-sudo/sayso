@@ -51,3 +51,75 @@ jobs:
           name: playwright-traces
           path: test-results/
           retention-days: 7
+
+  # Docker and Kubernetes are not installed on the machine this project is
+  # written on, so this job is where both are proven: the image is built,
+  # started and asked to answer, then run on a real cluster from the manifest.
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the image
+        run: docker build -t sayso:ci .
+
+      - name: Start a container and wait until it is healthy
+        run: |
+          docker run -d --name sayso -p 3000:3000 sayso:ci
+          for attempt in $(seq 1 30); do
+            status=$(docker inspect --format '{{.State.Health.Status}}' sayso)
+            if [ "$status" = "healthy" ]; then exit 0; fi
+            sleep 2
+          done
+          docker logs sayso
+          exit 1
+
+      - name: Ask it for the pages and the REST routes
+        run: |
+          curl --fail --silent http://localhost:3000/api/health
+          curl --fail --silent "http://localhost:3000/api/flights?from=DXB&to=LHR&date=2026-10-15" | grep -q '"JN 201"'
+          curl --fail --silent http://localhost:3000/api/catalog | grep -q '"seat-map"'
+          curl --fail --silent --output /dev/null http://localhost:3000/
+          curl --fail --silent --output /dev/null http://localhost:3000/gallery
+          test "$(docker exec sayso id -u)" = "10001"
+
+      # Checks the shape of the manifest against the Kubernetes schemas.
+      - name: Validate the Kubernetes manifest
+        run: docker run --rm -v "$PWD/deploy:/deploy" ghcr.io/yannh/kubeconform:latest -strict -summary /deploy/k8s.yaml
+
+      # The shape being right does not mean the pods start. kind runs a real
+      # Kubernetes cluster inside Docker, so the manifest is applied for real:
+      # the pods have to start under its security settings and pass its probes.
+      - name: Start a one-node Kubernetes cluster
+        run: |
+          if ! command -v kind >/dev/null; then
+            curl -sSLo kind https://kind.sigs.k8s.io/dl/v0.30.0/kind-linux-amd64
+            chmod +x kind && sudo mv kind /usr/local/bin/kind
+          fi
+          kind create cluster --wait 120s
+
+      - name: Apply the manifest and wait for both copies to be ready
+        run: |
+          docker tag sayso:ci sayso:local
+          kind load docker-image sayso:local
+          kubectl apply -f deploy/k8s.yaml
+          if ! kubectl rollout status deployment/sayso --timeout=180s; then
+            kubectl describe pods -l app=sayso
+            kubectl logs -l app=sayso --tail=50 || true
+            exit 1
+          fi
+          test "$(kubectl get deployment sayso -o jsonpath='{.status.readyReplicas}')" = "2"
+
+      - name: Call the app through the Service
+        run: |
+          kubectl port-forward service/sayso 8080:80 >/dev/null 2>&1 &
+          for attempt in $(seq 1 20); do
+            if curl --fail --silent --output /dev/null http://localhost:8080/api/health; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://localhost:8080/api/health
+          curl --fail --silent http://localhost:8080/api/catalog | grep -q '"seat-map"'
+          # Neither copy runs as root.
+          for pod in $(kubectl get pods -l app=sayso -o name); do
+            test "$(kubectl exec "$pod" -- id -u)" = "10001"
+          done
