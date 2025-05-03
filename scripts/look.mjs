@@ -3,7 +3,8 @@
 //
 //   node scripts/look.mjs [light|dark] [width] [journey]
 //
-// Needs the app on http://127.0.0.1:3030. Pictures go to the folder named in
+// Needs the app on http://127.0.0.1:3030, or wherever BASE_URL says: the live
+// site can be checked the same way. Pictures go to the folder named in
 // LOOK_DIR, or ./.look.
 
 import { mkdirSync } from "node:fs";
@@ -14,6 +15,7 @@ const theme = process.argv[2] === "dark" ? "dark" : "light";
 const width = Number(process.argv[3] ?? 1280);
 const only = process.argv[4] ?? "all";
 const out = process.env.LOOK_DIR ?? ".look";
+const base = process.env.BASE_URL ?? "http://127.0.0.1:3030";
 mkdirSync(out, { recursive: true });
 
 const browser = await chromium.launch();
@@ -38,7 +40,7 @@ async function journey(name, steps) {
     await page.keyboard.press("Enter");
   };
 
-  await page.goto("http://127.0.0.1:3030/");
+  await page.goto(base);
   await page.getByRole("heading", { level: 1 }).waitFor();
   try {
     await steps({ page, say, snap });
