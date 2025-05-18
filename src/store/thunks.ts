@@ -173,11 +173,13 @@ const understand =
         complete(ai, messages, { fetch: extra.fetch, signal: controller.signal }, { json: true }),
       );
       // A reply that did not hold up after one repair is treated as "not understood".
-      return { understanding: byModel ?? { kind: "unknown" }, brain: "model", model: ai.model, understoodMs: took(), trouble: null };
+      // Whatever the rules could say about why they were unsure is kept for the reply.
+      const understanding = !byModel || byModel.kind === "unknown" ? byRules : byModel;
+      return { understanding, brain: "model", model: ai.model, understoodMs: took(), trouble: null };
     } catch (problem) {
       if (controller.signal.aborted) return null;
       const trouble = problem instanceof ModelError ? problem.message : "The model could not be asked.";
-      return { understanding: { kind: "unknown" }, brain: "rules", model: null, understoodMs: took(), trouble };
+      return { understanding: byRules, brain: "rules", model: null, understoodMs: took(), trouble };
     } finally {
       extra.controllers.delete(UNDERSTANDING);
       dispatch(conversationActions.pendingSet(null));
@@ -277,7 +279,7 @@ export const ask =
           mark(null, { reply: NOT_UNDERSTOOD_WHILE_WAITING });
           return;
         case "unknown":
-          mark(null, { reply: notUnderstood(NOT_UNDERSTOOD_WHILE_WAITING) });
+          mark(null, { reply: notUnderstood(understanding.hint ?? NOT_UNDERSTOOD_WHILE_WAITING) });
           return;
         case "request":
           // Something else entirely. The journey in progress is left where it is.
@@ -314,7 +316,7 @@ export const ask =
         turn.reply = NOTHING_IN_PROGRESS;
         break;
       case "unknown":
-        turn.reply = notUnderstood(NOT_UNDERSTOOD);
+        turn.reply = notUnderstood(understanding.hint ?? NOT_UNDERSTOOD);
         break;
     }
 

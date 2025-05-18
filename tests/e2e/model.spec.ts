@@ -64,11 +64,11 @@ test.describe("with a model", () => {
 
   test("a question is answered in words, marked as written by the model", async ({ page }) => {
     await withModel(page);
-    const asked = await provider(page, { kind: "talk" }, "Pets are not something this desk can arrange.");
+    const asked = await provider(page, { kind: "talk" }, "I do not know what is served on board.");
     await openDesk(page);
-    await say(page, "am I allowed to bring my cat?");
+    await say(page, "is the food any good on board?");
 
-    await expect(page.getByText("Pets are not something this desk can arrange.")).toBeVisible();
+    await expect(page.getByText("I do not know what is served on board.")).toBeVisible();
     await expect(page.getByText(`Written by ${MODEL}, from the airline's rules`)).toBeVisible();
     expect(asked).toHaveLength(2);
     expect(asked[1].body.stream).toBe(true);

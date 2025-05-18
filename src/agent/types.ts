@@ -88,7 +88,11 @@ export type Understanding =
   | { kind: "talk" }
   /** Understood, but it cannot be done, and why: "Seat 12C is taken." */
   | { kind: "cannot"; why: string }
-  | { kind: "unknown" };
+  /**
+   * Not understood. `hint` is a better thing to say than "I did not understand
+   * that", when the rules can tell what the trouble was.
+   */
+  | { kind: "unknown"; hint?: string };
 
 /** What the understander may look at besides the words. */
 export type Context = {
