@@ -81,7 +81,7 @@ describe("whole conversations", () => {
     expect(last().run?.status).toBe("done");
     expect(bookings()).toHaveLength(4);
     const cheapest = [...flightsOn("DXB", "CDG", "2026-10-09")].sort((a, b) => a.price - b.price)[0];
-    expect(bookings()[3]).toMatchObject({ flight: { id: cheapest.id }, passenger: "Noor Haddad", status: "confirmed", paid: cheapest.price });
+    expect(bookings()[3]).toMatchObject({ flight: { id: cheapest.id }, passenger: "Uzair Khan", status: "confirmed", paid: cheapest.price });
     const order = last().calls.find((record) => record.call.tool === "order")?.result as OrderResult;
     expect(order.receipt).toMatchObject({ bookingCode: bookings()[3].code, total: cheapest.price });
   });

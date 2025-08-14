@@ -13,7 +13,7 @@ export const NOW = new Date("2026-10-06T10:30:00+04:00");
 export async function openDesk(page: Page): Promise<void> {
   await page.clock.setFixedTime(NOW);
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Hello, Noor." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Hello, Uzair." })).toBeVisible();
 }
 
 export async function say(page: Page, words: string): Promise<void> {
