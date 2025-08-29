@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { Check, CircleAlert, ExternalLink, Eye, EyeOff, LoaderCircle, X } from "lucide-react";
+import { Check, CircleAlert, Eye, EyeOff, LoaderCircle, X } from "lucide-react";
 import { AI_PRESETS, AI_PROVIDERS, NO_AI, listModels, presetConfig, type AiConfig, type AiProvider, type KeyCheck } from "@/ai/settings";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { saveAiConfig, settingsActions } from "@/store/settingsSlice";
@@ -9,7 +9,7 @@ import { useToast } from "./toast";
 import { Button, IconButton } from "./ui";
 
 const INPUT =
-  "h-9 w-full rounded-lg border border-line bg-bg px-2.5 text-[13px] text-fg placeholder:text-faint transition-colors hover:border-line-strong";
+  "h-10 w-full rounded-control border-[1.5px] border-ink bg-paper px-3 text-[14px] text-ink placeholder:text-ink-3";
 
 /** Where the visitor chooses which model the desk may ask, if any. */
 export function SettingsDialog() {
@@ -66,7 +66,7 @@ function SettingsForm() {
         if (event.target === dialog.current) dialog.current?.close();
       }}
       aria-labelledby={`${ids.provider}-title`}
-      className="m-auto w-[min(32rem,calc(100vw-2rem))] rounded-2xl border border-line bg-surface p-0 text-fg shadow-panel backdrop:bg-black/50"
+      className="m-auto max-h-[calc(100dvh-2rem)] w-[min(32rem,calc(100vw-2rem))] overflow-y-auto rounded-form border border-rule bg-paper p-0 text-ink shadow-[var(--shadow-overlay)] backdrop:bg-black/50"
     >
       <form
         method="dialog"
@@ -75,12 +75,12 @@ function SettingsForm() {
           if (complete) save();
         }}
       >
-        <header className="flex items-start gap-3 border-b border-line p-4">
+        <header className="flex items-start gap-3 border-b border-rule p-4">
           <div className="min-w-0 flex-1">
-            <h2 id={`${ids.provider}-title`} className="text-base font-semibold">
+            <h2 id={`${ids.provider}-title`} className="text-[18px] font-bold">
               Language model
             </h2>
-            <p className="mt-1 text-xs leading-relaxed text-muted">
+            <p className="mt-1.5 text-[13px] leading-relaxed text-ink-2">
               The desk works without one: built-in rules understand its eight journeys. With a model it also reads freer
               sentences and answers questions in words. Your key is kept in this browser and sent straight to the provider,
               never to Sayso.
@@ -93,7 +93,7 @@ function SettingsForm() {
 
         <div className="space-y-4 p-4">
           <div>
-            <label htmlFor={ids.provider} className="mb-1 block text-xs font-medium text-muted">
+            <label htmlFor={ids.provider} className="mb-1.5 block text-[13px] font-bold">
               Provider
             </label>
             <select
@@ -113,11 +113,11 @@ function SettingsForm() {
               ))}
             </select>
             {preset && (
-              <p className="mt-1 text-[11px] leading-relaxed text-faint">
+              <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-3">
                 {preset.note}{" "}
                 {preset.keyPage && (
-                  <a href={preset.keyPage} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-accent underline">
-                    Get a key <ExternalLink size={10} />
+                  <a href={preset.keyPage} target="_blank" rel="noreferrer" className="font-bold text-ink underline underline-offset-4">
+                    Get a key<span className="sr-only"> (opens in a new tab)</span>
                   </a>
                 )}
               </p>
@@ -128,7 +128,7 @@ function SettingsForm() {
             <>
               {custom && (
                 <div>
-                  <label htmlFor={ids.address} className="mb-1 block text-xs font-medium text-muted">
+                  <label htmlFor={ids.address} className="mb-1.5 block text-[13px] font-bold">
                     Address
                   </label>
                   <input
@@ -138,13 +138,13 @@ function SettingsForm() {
                     onChange={(event) => change({ baseUrl: event.target.value })}
                     placeholder="http://localhost:11434/v1"
                     spellCheck={false}
-                    className={`${INPUT} font-mono text-[12.5px]`}
+                    className={`${INPUT} font-mono text-[13px]`}
                   />
                 </div>
               )}
 
               <div>
-                <label htmlFor={ids.key} className="mb-1 block text-xs font-medium text-muted">
+                <label htmlFor={ids.key} className="mb-1.5 block text-[13px] font-bold">
                   API key{custom && " (leave empty if the service needs none)"}
                 </label>
                 <div className="flex gap-1.5">
@@ -155,16 +155,16 @@ function SettingsForm() {
                     onChange={(event) => change({ apiKey: event.target.value })}
                     autoComplete="off"
                     spellCheck={false}
-                    className={`${INPUT} font-mono text-[12.5px]`}
+                    className={`${INPUT} font-mono text-[13px]`}
                   />
-                  <IconButton label={showKey ? "Hide the key" : "Show the key"} className="h-9 w-9" onClick={() => setShowKey(!showKey)}>
+                  <IconButton label={showKey ? "Hide the key" : "Show the key"} className="h-10 w-10" onClick={() => setShowKey(!showKey)}>
                     {showKey ? <EyeOff size={15} /> : <Eye size={15} />}
                   </IconButton>
                 </div>
               </div>
 
               <div>
-                <label htmlFor={ids.model} className="mb-1 block text-xs font-medium text-muted">
+                <label htmlFor={ids.model} className="mb-1.5 block text-[13px] font-bold">
                   Model
                 </label>
                 <div className="flex gap-1.5">
@@ -176,9 +176,9 @@ function SettingsForm() {
                     list={ids.models}
                     spellCheck={false}
                     autoComplete="off"
-                    className={`${INPUT} font-mono text-[12.5px]`}
+                    className={`${INPUT} font-mono text-[13px]`}
                   />
-                  <Button className="h-9" onClick={() => void runCheck()} disabled={check === "checking" || draft.baseUrl.trim() === ""}>
+                  <Button className="h-10" onClick={() => void runCheck()} disabled={check === "checking" || draft.baseUrl.trim() === ""}>
                     {check === "checking" ? <LoaderCircle size={13} className="animate-spin" /> : null}
                     Check key
                   </Button>
@@ -187,10 +187,10 @@ function SettingsForm() {
                   {check && check !== "checking" && check.ok && check.models.map((model) => <option key={model} value={model} />)}
                 </datalist>
 
-                <p className="mt-1.5 min-h-4 text-[11px] leading-relaxed" role="status">
+                <p className="mt-1.5 min-h-4 text-[12.5px] leading-relaxed" role="status">
                   {check && check !== "checking" && check.ok && (
-                    <span className="flex items-start gap-1.5 text-ok">
-                      <Check size={12} strokeWidth={3} className="mt-0.5 shrink-0" />
+                    <span className="flex items-start gap-1.5 text-ink">
+                      <Check size={14} strokeWidth={2.75} className="mt-0.5 shrink-0" aria-hidden="true" />
                       <span>
                         The key works. It can use {check.models.length} {check.models.length === 1 ? "model" : "models"}; start
                         typing in the Model field to pick one.
@@ -202,11 +202,11 @@ function SettingsForm() {
                   )}
                   {check && check !== "checking" && !check.ok && (
                     <span className="flex items-start gap-1.5 text-bad">
-                      <CircleAlert size={12} className="mt-0.5 shrink-0" /> {check.message}
+                      <CircleAlert size={14} className="mt-0.5 shrink-0" aria-hidden="true" /> {check.message}
                     </span>
                   )}
                   {!check && (
-                    <span className="text-faint">
+                    <span className="text-ink-3">
                       Model names change often. “Check key” asks the provider which ones your key can use, at no cost.
                     </span>
                   )}
@@ -216,7 +216,7 @@ function SettingsForm() {
           )}
         </div>
 
-        <footer className="flex items-center justify-end gap-2 border-t border-line p-4">
+        <footer className="flex items-center justify-end gap-2 border-t border-rule p-4">
           <Button onClick={() => dialog.current?.close()}>Cancel</Button>
           <Button type="submit" variant="primary" disabled={!complete}>
             Save
