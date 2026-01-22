@@ -94,7 +94,7 @@ export async function advance(run: RunState, deps: Deps, emit: (event: RunEvent)
           report({ type: "said", stepId: step.id, text: String(fill(step.text, state.results)) });
           break;
         case "set":
-          report({ type: "set", stepId: step.id, value: step.value });
+          report({ type: "set", stepId: step.id, value: fill(step.value, state.results) });
           break;
         case "tool": {
           report({ type: "tool-started", stepId: step.id, tool: step.tool, label: step.label });
@@ -168,7 +168,11 @@ export type Item =
  */
 export function itemsOf(run: RunState): Item[] {
   const items: Item[] = [];
-  const reached = run.status === "waiting" ? run.at + 1 : run.at;
+  // A component that was waiting when the journey was left stays on the page,
+  // so it is clear what was left. The page draws it as no longer usable.
+  const current = run.steps[run.at];
+  const left = run.status === "stopped" && current?.kind === "show" && current.waits;
+  const reached = run.status === "waiting" || left ? run.at + 1 : run.at;
 
   for (let index = 0; index < Math.min(reached, run.steps.length); index += 1) {
     const step = run.steps[index];
@@ -194,7 +198,6 @@ export function itemsOf(run: RunState): Item[] {
     }
   }
 
-  const current = run.steps[run.at];
   if (run.status === "running" && current?.kind === "tool") items.push({ kind: "working", stepId: current.id, label: current.label });
   if (run.status === "failed" && run.failure) items.push({ kind: "failed", stepId: run.failure.stepId, failure: run.failure });
   return items;

@@ -99,6 +99,18 @@ body {
   outline-offset: 2px;
 }
 
+/* For an input that sits inside a box which shows the focus itself. */
+.ring-on-parent:focus-visible {
+  outline: none;
+}
+
+.ring-within:focus-within {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 3px color-mix(in oklab, var(--accent) 22%, transparent),
+    var(--shadow-lift);
+}
+
 /* Equal-width digits: for prices and times that line up in a column. */
 .tabular {
   font-variant-numeric: tabular-nums;

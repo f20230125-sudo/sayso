@@ -129,6 +129,7 @@ export const ask =
     if (words === "" || !account) return;
 
     const today = localDay(extra.now());
+    const now = extra.now().toISOString();
     const active = activeTurnOf(getState());
     const waiting = active ? waitingStep(active.run) : null;
     const context: Context = {
@@ -158,7 +159,7 @@ export const ask =
           return;
         case "amend": {
           const intents = mergeIntents(active.intents, understanding.intents);
-          const changed = replan(active.run, planFor(intents, { today, account, focus: focusOf(getState()) }));
+          const changed = replan(active.run, planFor(intents, { today, now, account, focus: focusOf(getState()) }));
           if (changed.changedAt === null) {
             mark(null, ALREADY_SO);
             return;
@@ -188,7 +189,7 @@ export const ask =
     switch (understanding.kind) {
       case "request":
       case "amend": {
-        const plan = planFor(understanding.intents, { today, account, focus: focusOf(getState()) });
+        const plan = planFor(understanding.intents, { today, now, account, focus: focusOf(getState()) });
         turn.intents = understanding.intents;
         if (plan.steps.length > 0) turn.run = startRun(plan);
         else turn.reply = NOT_UNDERSTOOD;
