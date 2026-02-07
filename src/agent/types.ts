@@ -75,6 +75,10 @@ export type Understanding =
   | { kind: "abandon" }
   /** Small talk the desk can answer without doing anything. */
   | { kind: "chat"; about: "hello" | "thanks" | "help" }
+  /** A question the rules can answer outright, with the line that answers it. */
+  | { kind: "say"; text: string }
+  /** A question that needs an answer in words, not an action. Only a model says this. */
+  | { kind: "talk" }
   /** Understood, but it cannot be done, and why: "Seat 12C is taken." */
   | { kind: "cannot"; why: string }
   | { kind: "unknown" };
