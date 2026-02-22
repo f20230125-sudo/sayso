@@ -1,6 +1,6 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { Check, Minus } from "lucide-react";
 import { AnimatePresence, m } from "motion/react";
 import type { ComponentType } from "react";
 import type { Json } from "@/agent/reference";
@@ -46,14 +46,17 @@ type HostProps = {
   /** "active" waits for the traveller, "answered" has its answer, "shown" never asked for one. */
   state: "active" | "answered" | "shown";
   answer: Json;
-  /** The journey was left: the component stays on the page but can no longer be used. */
+  /** The journey was left: a component still waiting folds to a line saying it was not answered. */
   closed: boolean;
   onAnswer: (answer: Json) => void;
 };
 
 /** Draws one component of a reply, or the single line it folds into once answered. */
 export function WidgetHost({ widget, props, state, answer, closed, onAnswer }: HostProps) {
-  const folded = state === "answered";
+  // A component folds once it is answered, and also when its journey is left
+  // with it unanswered: either way there is nothing more to do with it.
+  const left = closed && state === "active";
+  const folded = state === "answered" || left;
   const View = VIEWS[widget] as ComponentType<ViewProps<WidgetType>>;
 
   // The component closes and its one-line summary opens in its place. The
@@ -72,14 +75,12 @@ export function WidgetHost({ widget, props, state, answer, closed, onAnswer }: H
       >
         {folded ? (
           <div className="flex items-center gap-2.5 rounded-xl border border-line bg-surface px-4 py-2.5 text-[14px]">
-            <Check size={15} className="shrink-0 text-ok" aria-hidden="true" />
+            {left ? <Minus size={15} className="shrink-0 text-faint" aria-hidden="true" /> : <Check size={15} className="shrink-0 text-ok" aria-hidden="true" />}
             <span className="eyebrow shrink-0">{WIDGETS[widget].title}</span>
-            <span className="min-w-0 truncate">{summaryOf(widget, props, answer)}</span>
+            <span className={`min-w-0 truncate ${left ? "text-muted" : ""}`}>{left ? "Not answered" : summaryOf(widget, props, answer)}</span>
           </div>
         ) : (
-          <div className={closed && state === "active" ? "opacity-60" : ""}>
-            <View props={props as WidgetProps<WidgetType>} active={state === "active" && !closed} onAnswer={(value) => onAnswer(value as Json)} />
-          </div>
+          <View props={props as WidgetProps<WidgetType>} active={state === "active"} onAnswer={(value) => onAnswer(value as Json)} />
         )}
       </m.div>
     </AnimatePresence>
