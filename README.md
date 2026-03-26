@@ -34,7 +34,11 @@ Eight journeys, in your own words, several in one sentence if you like:
 | Cancel and refund | "Cancel my Istanbul trip" |
 | Book a flight | "Book a flight to Paris next Friday" |
 
-Replies are built from thirteen components, all on the [gallery page](https://sayso-sigma.vercel.app/gallery): trips, which-trip question, flight search, days, flights, seat map, bag stepper, passenger check, refund, price summary, receipt, boarding pass and status timeline.
+Beyond the journeys, the desk answers questions about your own account: "How much have I spent this year?", "Show my spending by route", "Show my recent payments". There is no screen designed for each question. Whoever understands it picks from ready-made views of the account, and the code works out every number.
+
+Where the browser can listen (Chrome, Edge and Safari), a microphone appears in the ask bar: say it instead of typing it.
+
+Replies are built from fourteen components, all on the [gallery page](https://sayso-sigma.vercel.app/gallery): trips, which-trip question, flight search, days, flights, seat map, bag stepper, passenger check, refund, price summary, receipt, boarding pass, status timeline and answer card.
 
 | The end of a request, dark theme | On a phone |
 | --- | --- |
@@ -58,6 +62,7 @@ Every request goes through four steps. All four are plain TypeScript in `src/age
 - **Several journeys, one order.** Journeys that cost money each add a change to one shared order, so a sentence with three requests ends in one price, one confirmation and one receipt.
 - **The server never trusts a price from the browser.** Confirming an order makes the server work the price out again and refuse if it differs.
 - **Rules first, model second.** A sentence the rules can read never reaches a model. The whole demo works with no key.
+- **A model may choose a layout, never a number.** For a question about your account, the model's whole answer is a list of view names, such as `["spending", "spending-by-month"]`. The sums, the months and the chart are worked out in `src/agent/views.ts`.
 
 ### State
 
@@ -133,6 +138,7 @@ tests/e2e/          Playwright
 - The rules read English, and the common ways of asking. Unusual sentences need a model.
 - The account lives in one browser. The demo trips are dated from the day of the visit, so they are made afresh each day.
 - Each airport keeps one time offset all year. Daylight saving is ignored.
+- Voice input is the browser's own speech recognition. It is tested with a stand-in, because a test cannot talk; Firefox has none, so it shows no microphone.
 - The model path is tested against a stand-in provider. A live model can still misread a sentence; when it does, the desk says it did not understand.
 
 ## Licence
