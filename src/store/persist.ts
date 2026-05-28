@@ -27,8 +27,11 @@ const runSchema = z.object({
   checks: z.array(z.object({ label: z.string(), pass: z.boolean() })),
 });
 
+const logSchema = z.object({ at: z.number(), type: z.string(), stepId: z.string().nullable() });
+
 const turnSchema = z.object({
   id: z.string(),
+  startedAt: z.string().nullable().default(null),
   words: z.string(),
   understanding: z.object({ kind: z.string() }).loose(),
   brain: z.enum(["rules", "model"]),
@@ -42,6 +45,7 @@ const turnSchema = z.object({
   streaming: z.boolean().default(false).transform(() => false),
   marks: z.array(z.object({ words: z.string(), beforeStep: z.string().nullable(), reply: z.string().optional(), by: z.string().optional() })),
   calls: z.array(z.object({ stepId: z.string() }).loose()),
+  log: z.array(logSchema).default([]),
   closing: z.string().nullable(),
 });
 

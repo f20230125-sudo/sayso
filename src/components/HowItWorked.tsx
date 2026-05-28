@@ -1,11 +1,14 @@
 "use client";
 
-import { Check, Circle, CircleAlert, CircleCheck, CircleDot, Minus, X } from "lucide-react";
+import { Check, Circle, CircleAlert, CircleCheck, CircleDot, ExternalLink, Minus, X } from "lucide-react";
 import { describeIntent, describeStep, describeUnderstanding, progressOf, type StepProgress } from "@/agent/describe";
+import { exportTurn } from "@/agent/export";
 import type { Json } from "@/agent/reference";
+import { describeSend, sendToHindsight } from "@/hindsight/send";
 import type { CallRecord, Turn } from "@/store/conversationSlice";
 import { JsonTree } from "./JsonTree";
-import { IconButton } from "./ui";
+import { useToast } from "./toast";
+import { Button, IconButton } from "./ui";
 
 // The four steps behind one reply, shown as they went: what was understood,
 // the plan, each call to the airline's API with the data that came back, and
@@ -65,13 +68,31 @@ function Call({ record }: { record: CallRecord }) {
 }
 
 export function HowItWorked({ turn, onClose }: { turn: Turn | null; onClose: () => void }) {
+  const { showToast } = useToast();
+
+  /** Hands the run to Hindsight, an observer for agents. Called from the click, so the new tab is not blocked. */
+  const openInHindsight = (shown: Turn) => {
+    void sendToHindsight(exportTurn(shown), `hindsight-sayso-${shown.id}.json`).then((result) => {
+      const { message, tone } = describeSend(result);
+      showToast(message, { tone });
+    });
+  };
+
   return (
     <aside className="flex h-full flex-col bg-bg" aria-label="How it worked">
       <header className="flex h-14 shrink-0 items-center justify-between gap-3 px-5">
         <h2 className="eyebrow">How it worked</h2>
-        <IconButton label="Close how it worked" onClick={onClose}>
-          <X size={16} />
-        </IconButton>
+        <div className="flex items-center gap-1">
+          {turn ? (
+            <Button size="sm" variant="ghost" onClick={() => openInHindsight(turn)}>
+              <ExternalLink size={13} aria-hidden="true" />
+              Open in Hindsight
+            </Button>
+          ) : null}
+          <IconButton label="Close how it worked" onClick={onClose}>
+            <X size={16} />
+          </IconButton>
+        </div>
       </header>
 
       {!turn ? (
