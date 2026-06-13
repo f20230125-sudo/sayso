@@ -50,6 +50,8 @@ export type SaysoCall = {
 
 export type SaysoRun = {
   id: string;
+  /** When this was written out. A journey still waiting for the traveller has been waiting until then. */
+  exportedAt: string;
   words: string;
   /** When the words were said. Null for a turn saved before this was kept. */
   startedAt: string | null;
@@ -79,7 +81,7 @@ export type SaysoEnvelope = {
   data: SaysoRun;
 };
 
-export function exportTurn(turn: Turn): SaysoEnvelope {
+export function exportTurn(turn: Turn, exportedAt: string): SaysoEnvelope {
   const run = turn.run;
   const steps: SaysoStep[] = (run?.steps ?? []).map((step, index) => {
     switch (step.kind) {
@@ -110,6 +112,7 @@ export function exportTurn(turn: Turn): SaysoEnvelope {
     app: "sayso",
     data: {
       id: turn.id,
+      exportedAt,
       words: turn.words,
       startedAt: turn.startedAt,
       understanding: turn.understanding.kind,
