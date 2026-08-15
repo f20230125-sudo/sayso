@@ -12,7 +12,7 @@ import { findSeat, seatMapOf } from "./seats";
 // tomorrow to check in for and a flight a few days out to move. The account
 // lives in the visitor's browser: the server never holds it.
 
-const TRAVELLER = { name: "Noor Haddad", tier: "Silver", card: { brand: "Visa", last4: "4242" } } as const;
+const TRAVELLER = { name: "Uzair Khan", tier: "Silver", card: { brand: "Visa", last4: "4242" } } as const;
 
 const THURSDAY = 4;
 const SATURDAY = 6;
