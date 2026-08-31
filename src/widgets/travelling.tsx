@@ -1,11 +1,11 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { Check, CircleAlert } from "lucide-react";
 import { useMemo, useState } from "react";
 import { shortDay } from "@/airline/dates";
 import { AIRLINE } from "@/airline/places";
 import { seeded } from "@/airline/random";
-import { Button } from "@/components/ui";
+import { Button, Field, Perforation } from "@/components/ui";
 import type { ViewProps } from "./registry";
 import { Lines } from "./simple";
 import { money } from "./specs";
@@ -25,24 +25,22 @@ export function PassengerCheck({ props, active, onAnswer }: ViewProps<"passenger
     ["Seat", booking.seat ?? "Chosen in this order"],
     ["Checked bags", String(booking.bags)],
   ];
+  const ready = !ticked.includes(false);
 
   return (
-    <section className="panel p-5" aria-label="Passenger check">
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
+    <section className="doc p-5" aria-label="Passenger check">
+      <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
         {facts.map(([label, value]) => (
-          <div key={label}>
-            <dt className="eyebrow">{label}</dt>
-            <dd className="mt-1 text-[14px] font-medium">{value}</dd>
-          </div>
+          <Field key={label} label={label} value={value} />
         ))}
       </dl>
-      <fieldset className="mt-5 flex flex-col gap-2.5 border-t border-line pt-4" disabled={!active}>
+      <fieldset className="mt-5 flex flex-col gap-1 border-t border-rule pt-3" disabled={!active}>
         <legend className="sr-only">Declarations</legend>
         {DECLARATIONS.map((text, index) => (
-          <label key={text} className="flex cursor-pointer items-start gap-3 text-[14px]">
+          <label key={text} className="flex min-h-11 cursor-pointer items-center gap-3 text-[15px]">
             <input
               type="checkbox"
-              className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--accent)]"
+              className="h-6 w-6 shrink-0 accent-ink"
               checked={ticked[index]}
               onChange={(event) => setTicked(ticked.map((value, at) => (at === index ? event.target.checked : value)))}
             />
@@ -50,8 +48,8 @@ export function PassengerCheck({ props, active, onAnswer }: ViewProps<"passenger
           </label>
         ))}
       </fieldset>
-      <div className="mt-5 flex justify-end">
-        <Button variant="primary" disabled={!active || ticked.includes(false)} onClick={() => onAnswer({ confirmed: true })}>
+      <div className="mt-4 flex justify-end">
+        <Button variant="primary" disabled={!active || !ready} onClick={() => onAnswer({ confirmed: true })}>
           Check in
         </Button>
       </div>
@@ -62,16 +60,16 @@ export function PassengerCheck({ props, active, onAnswer }: ViewProps<"passenger
 export function Refund({ props, active, onAnswer }: ViewProps<"refund">) {
   const { quote, card, booking } = props;
   return (
-    <section className="panel p-5" aria-label="Refund">
-      <div className="eyebrow mb-2">
+    <section className="doc p-5" aria-label="Refund">
+      <h3 className="mb-1 text-[15px] font-bold">
         Cancel {booking.flight.number} to {booking.flight.toCity}, {shortDay(booking.flight.date)}
-      </div>
+      </h3>
       <Lines lines={quote.lines} total={quote.total} totalLabel="Back to you" />
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-        <span className="text-[13px] text-muted">
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+        <span className="text-[13px] text-ink-2">
           To {card.brand} ending {card.last4}. This cannot be undone.
         </span>
-        <Button variant="outline" className="border-bad text-bad hover:bg-surface-2" disabled={!active} onClick={() => onAnswer({ confirmed: true })}>
+        <Button variant="danger" disabled={!active} onClick={() => onAnswer({ confirmed: true })}>
           Cancel booking, refund {money(quote.total)}
         </Button>
       </div>
@@ -86,14 +84,15 @@ function Barcode({ seed }: { seed: string }) {
     return Array.from({ length: 46 }, () => 1 + Math.floor(next() * 3));
   }, [seed]);
   return (
-    <div className="flex h-11 items-stretch gap-[2px]" aria-hidden="true">
+    <div className="flex h-11 min-w-0 flex-1 items-stretch gap-[2px] overflow-hidden" aria-hidden="true">
       {bars.map((width, index) => (
-        <span key={index} className={index % 2 === 0 ? "bg-fg" : "bg-transparent"} style={{ width: `${width * 1.5}px` }} />
+        <span key={index} className={`shrink-0 ${index % 2 === 0 ? "bg-ink" : "bg-transparent"}`} style={{ width: `${width * 1.5}px` }} />
       ))}
     </div>
   );
 }
 
+/** The pass: the flight and its facts above the tear-off, the barcode and booking code on the stub below it. */
 export function BoardingPass({ props }: ViewProps<"boarding-pass">) {
   const { booking, status } = props;
   const { flight } = booking;
@@ -109,53 +108,57 @@ export function BoardingPass({ props }: ViewProps<"boarding-pass">) {
   ];
 
   return (
-    <section className="panel overflow-hidden" aria-label="Boarding pass">
-      <div className="flex items-center justify-between gap-3 px-5 pt-5">
-        <span className="eyebrow">{AIRLINE.name} · boarding pass</span>
-        <span className="flex items-center gap-1.5 text-[12px] font-medium text-ok">
-          <Check size={13} aria-hidden="true" />
-          Checked in
-        </span>
-      </div>
-      <div className="px-5 pb-5 pt-3">
-        <div className="mb-4 text-[17px] font-semibold tracking-tight">{booking.passenger}</div>
-        <FlightLine flight={flight} />
-        <dl className="mt-5 grid grid-cols-3 gap-x-3 gap-y-4 sm:grid-cols-5">
+    <section className="doc" aria-label="Boarding pass">
+      <div className="px-5 pb-5 pt-4">
+        <div className="flex items-baseline justify-between gap-3 text-[14px]">
+          <span className="text-ink-2">
+            <span className="font-bold text-ink">{AIRLINE.name}</span> boarding pass
+          </span>
+          <span className="flex items-center gap-1.5 font-bold">
+            <Check size={15} strokeWidth={2.75} aria-hidden="true" />
+            Checked in
+          </span>
+        </div>
+        <div className="mt-3 text-[17px] font-bold">{booking.passenger}</div>
+        <div className="mt-3">
+          <FlightLine flight={flight} />
+        </div>
+        <dl className="mt-5 grid grid-cols-3 gap-x-4 gap-y-4 sm:grid-cols-5">
           {facts.map(([label, value]) => (
-            <div key={label}>
-              <dt className="eyebrow">{label}</dt>
-              <dd className="tabular mt-1 whitespace-nowrap text-[15px] font-semibold">{value}</dd>
-            </div>
+            <Field key={label} label={label} value={value} />
           ))}
         </dl>
       </div>
-      <div className="flex items-end justify-between gap-4 border-t border-dashed border-line-strong bg-surface-2/50 px-5 py-4">
+      <Perforation />
+      <div className="flex items-end justify-between gap-4 px-5 py-4">
         <Barcode seed={booking.code} />
-        <div className="text-right">
-          <div className="eyebrow">Booking</div>
-          <div className="tabular mt-0.5 font-mono text-[14px] font-semibold tracking-wider">{booking.code}</div>
-        </div>
+        <dl className="w-32 shrink-0">
+          <Field label="Booking" value={booking.code} mono />
+        </dl>
       </div>
     </section>
   );
 }
 
+const PHASES = { scheduled: "Scheduled", "check-in": "Check-in open", closing: "Bag drop closed", boarding: "Boarding", departed: "In the air", landed: "Landed" } as const;
+
 export function StatusTimeline({ props }: ViewProps<"status-timeline">) {
   const { flight, status } = props;
   const late = status.delayMinutes > 0;
   return (
-    <section className="panel p-5" aria-label={`Status of ${flight.number}`}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <section className="doc p-5" aria-label={`Status of ${flight.number}`}>
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
         <div>
-          <div className="eyebrow">
-            {flight.number} · {flight.fromCity} to {flight.toCity} · {shortDay(flight.date)}
+          <div className={`flex items-center gap-2 text-[24px] font-bold leading-tight ${late ? "text-warn" : ""}`}>
+            {late ? <CircleAlert size={22} aria-hidden="true" /> : null}
+            {late ? `${status.delayMinutes} minutes late` : "On time"}
           </div>
-          <div className="mt-1.5 text-[22px] font-semibold tracking-tight">{late ? `${status.delayMinutes} minutes late` : "On time"}</div>
+          <div className="mt-1 text-[13px] text-ink-3">
+            {flight.number}, {flight.fromCity} to {flight.toCity}, {shortDay(flight.date)}
+          </div>
         </div>
-        <span
-          className={`rounded-full border px-2.5 py-1 text-[12px] font-medium ${late ? "border-warn/40 text-warn" : "border-ok/40 text-ok"}`}
-        >
-          {{ scheduled: "Scheduled", "check-in": "Check-in open", closing: "Bag drop closed", boarding: "Boarding", departed: "In the air", landed: "Landed" }[status.phase]}
+        <span className="text-[14px] font-bold">
+          <span className="stroke">{PHASES[status.phase]}</span>
         </span>
       </div>
 
@@ -164,26 +167,26 @@ export function StatusTimeline({ props }: ViewProps<"status-timeline">) {
           <li key={step.key} className="flex gap-3.5">
             <span className="flex flex-col items-center" aria-hidden="true">
               <span
-                className={`mt-1 h-3 w-3 rounded-full border-2 ${
-                  step.state === "done" ? "border-ok bg-ok" : step.state === "next" ? "border-accent bg-accent-soft" : "border-line-strong bg-surface"
+                className={`mt-1 h-3.5 w-3.5 rounded-full border-2 ${
+                  step.state === "done" ? "border-ink bg-ink" : step.state === "next" ? "border-mark-edge bg-mark" : "border-edge bg-paper"
                 }`}
               />
-              {index < status.steps.length - 1 ? <span className={`w-px flex-1 ${step.state === "done" ? "bg-ok" : "bg-line-strong"}`} /> : null}
+              {index < status.steps.length - 1 ? <span className={`w-0.5 flex-1 ${step.state === "done" ? "bg-ink" : "bg-edge"}`} /> : null}
             </span>
-            <span className={`flex flex-1 items-baseline justify-between gap-4 pb-4 text-[14px] ${step.state === "later" ? "text-muted" : ""}`}>
-              <span className={step.state === "next" ? "font-semibold" : ""}>
+            <span className={`flex flex-1 flex-wrap items-baseline justify-between gap-x-4 pb-4 text-[15px] ${step.state === "later" ? "text-ink-2" : ""}`}>
+              <span className={step.state === "next" ? "font-bold" : ""}>
                 {step.label}
                 <span className="sr-only">{step.state === "done" ? " (done)" : step.state === "next" ? " (next)" : ""}</span>
               </span>
-              <span className="tabular shrink-0 text-muted">
-                {shortDay(step.date)} · {step.time}
+              <span className="shrink-0 text-ink-2">
+                {shortDay(step.date)}, <span className="text-[17px] font-bold text-ink">{step.time}</span>
               </span>
             </span>
           </li>
         ))}
       </ol>
 
-      <div className="flex flex-wrap gap-x-5 gap-y-1 border-t border-line pt-3 text-[13px] text-muted">
+      <div className="flex flex-wrap gap-x-5 gap-y-1 border-t border-rule pt-3 text-[13px] text-ink-2">
         <span>{status.terminal}</span>
         <span>{status.gate ? `Gate ${status.gate}` : "Gate shown 3 hours before"}</span>
         {status.walkMinutes ? <span>{status.walkMinutes} minute walk from security</span> : null}

@@ -1,10 +1,11 @@
 "use client";
 
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { CircleAlert, X } from "lucide-react";
+import { askInput } from "./focus";
 
-// Short messages that appear in a corner and leave by themselves. A toast can
-// carry one action, such as "Undo".
+// Short messages that appear under the header and leave by themselves. A toast
+// can carry one action, such as "Undo".
 
 type Toast = {
   id: number;
@@ -24,7 +25,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const nextId = useRef(1);
 
   const dismiss = useCallback((id: number) => {
+    // If the keyboard was on this toast, it goes back to the page and not to nowhere.
+    const hadFocus = document.activeElement?.closest(`[data-toast="${id}"]`) != null;
     setToasts((current) => current.filter((toast) => toast.id !== id));
+    if (hadFocus) requestAnimationFrame(() => (askInput() ?? document.getElementById("main"))?.focus());
   }, []);
 
   const showToast = useCallback(
@@ -41,19 +45,21 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="pointer-events-none fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 flex-col items-center gap-2" role="status" aria-live="polite">
+      <div className="pointer-events-none fixed inset-x-4 top-16 z-50 flex flex-col items-end gap-2 sm:left-auto sm:right-6" role="status" aria-live="polite">
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`pointer-events-auto flex items-center gap-3 rounded-lg border bg-surface px-3 py-2 text-sm shadow-panel ${
-              toast.tone === "bad" ? "border-bad text-bad" : "border-line text-fg"
+            data-toast={toast.id}
+            className={`pointer-events-auto flex max-w-full items-center gap-3 rounded-control border-[1.5px] bg-paper py-1.5 pl-4 pr-1.5 text-[14px] text-ink shadow-[var(--shadow-overlay)] ${
+              toast.tone === "bad" ? "border-bad" : "border-ink"
             }`}
           >
-            <span>{toast.message}</span>
+            {toast.tone === "bad" ? <CircleAlert size={17} className="shrink-0 text-bad" aria-hidden="true" /> : null}
+            <span className="py-1">{toast.message}</span>
             {toast.action && (
               <button
                 type="button"
-                className="rounded px-1.5 py-0.5 font-medium text-accent hover:bg-accent-soft"
+                className="min-h-8 rounded-seat px-2 font-bold underline underline-offset-4 hover:bg-paper-2"
                 onClick={() => {
                   toast.action?.run();
                   dismiss(toast.id);
@@ -62,8 +68,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 {toast.action.label}
               </button>
             )}
-            <button type="button" aria-label="Dismiss" className="text-faint hover:text-fg" onClick={() => dismiss(toast.id)}>
-              <X size={14} />
+            <button type="button" aria-label="Dismiss" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-seat text-ink-2 hover:bg-paper-2 hover:text-ink" onClick={() => dismiss(toast.id)}>
+              <X size={16} />
             </button>
           </div>
         ))}

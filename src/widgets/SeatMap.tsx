@@ -66,12 +66,15 @@ export function SeatMap({ props, active, onAnswer }: ViewProps<"seat-map">) {
   }
 
   return (
-    <section className="panel overflow-hidden" aria-label={`Seats on ${flight.number}`}>
-      <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-line px-5 py-3.5">
-        <span className="eyebrow">
-          {flight.number} · {flight.fromCity} to {flight.toCity} · {shortDay(flight.date)}
+    <section className="doc overflow-hidden" aria-label={`Seats on ${flight.number}`}>
+      <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-rule px-5 py-3.5">
+        <span className="flex flex-wrap items-baseline gap-x-3">
+          <span className="text-[15px] font-bold">Seat map</span>
+          <span className="text-[13px] text-ink-3">
+            {flight.number}, {flight.fromCity} to {flight.toCity}, {shortDay(flight.date)}
+          </span>
         </span>
-        <span className="text-[13px] text-muted">{current ? `Your seat now: ${current}` : "No seat yet"}</span>
+        <span className="text-[13px] text-ink-2">{current ? `Your seat now: ${current}` : "No seat yet"}</span>
       </header>
 
       <div ref={cabin} className="relative max-h-[352px] overflow-y-auto px-5 py-4">
@@ -82,7 +85,7 @@ export function SeatMap({ props, active, onAnswer }: ViewProps<"seat-map">) {
               <span
                 key={letter}
                 role="columnheader"
-                className={`eyebrow flex h-5 w-8 items-center justify-center ${index === map.aisleAfter ? "ml-6" : ""}`}
+                className={`flex h-6 w-8 items-center justify-center text-[12.5px] text-ink-3 ${index === map.aisleAfter ? "ml-6" : ""}`}
               >
                 {letter}
               </span>
@@ -91,22 +94,23 @@ export function SeatMap({ props, active, onAnswer }: ViewProps<"seat-map">) {
 
           {map.rows.map((row) => (
             <div key={row.row} role="row" className={`flex items-center gap-1.5 ${row.exit ? "my-3" : "my-1.5"}`}>
-              <span role="rowheader" className="tabular w-7 text-right text-[11px] text-faint">
+              <span role="rowheader" className="w-7 text-right text-[12px] text-ink-3">
                 {row.row}
               </span>
               {row.seats.map((seat, index) => {
                 const mine = seat.id === current;
                 const isSelected = seat.id === selected;
                 const free = pickable(seat);
+                // Chosen is ink on paper, the desk's marking is the highlighter, taken is paper-2 and says nothing.
                 const look = isSelected
-                  ? "border-accent bg-accent text-accent-fg"
+                  ? "border-ink bg-ink font-bold text-paper"
                   : mine
-                    ? "border-dashed border-fg bg-surface text-fg"
+                    ? "border-dashed border-ink bg-paper text-ink"
                     : !free
-                      ? "border-transparent bg-surface-2 text-transparent"
+                      ? "border-transparent bg-paper-2 text-transparent"
                       : matches(seat)
-                        ? "border-accent bg-accent-soft text-fg hover:bg-accent hover:text-accent-fg"
-                        : "border-line-strong bg-surface text-muted hover:border-accent hover:text-fg";
+                        ? "border-mark-edge bg-mark text-on-mark hover:shadow-[inset_0_0_0_1px_var(--mark-edge)]"
+                        : "border-edge bg-paper text-ink-2 hover:border-ink hover:text-ink";
                 return (
                   <span key={seat.id} role="gridcell" className={index === map.aisleAfter ? "ml-6" : ""}>
                     <button
@@ -129,7 +133,7 @@ export function SeatMap({ props, active, onAnswer }: ViewProps<"seat-map">) {
                           move(seat, event.key);
                         }
                       }}
-                      className={`tabular flex h-8 w-8 items-center justify-center rounded-lg border text-[10px] font-medium transition-colors ${look} ${
+                      className={`flex h-8 w-8 items-center justify-center rounded-seat border text-[12px] transition-colors duration-150 ${look} ${
                         free && active ? "cursor-pointer" : "cursor-default"
                       }`}
                     >
@@ -138,32 +142,32 @@ export function SeatMap({ props, active, onAnswer }: ViewProps<"seat-map">) {
                   </span>
                 );
               })}
-              {row.exit ? <span className="eyebrow ml-2 hidden sm:inline">More legroom</span> : null}
+              {row.exit ? <span className="ml-2 hidden text-[12.5px] text-ink-3 sm:inline">More legroom</span> : null}
             </div>
           ))}
         </div>
       </div>
 
-      <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3.5">
-        <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-muted" aria-label="Key">
+      <footer className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-t border-rule px-5 py-3">
+        <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-ink-2" aria-label="Key">
           {wish ? (
             <li className="flex items-center gap-1.5">
-              <span className="h-3 w-3 rounded border border-accent bg-accent-soft" />
+              <span className="h-3.5 w-3.5 rounded-seat border border-mark-edge bg-mark" />
               {WISH_WORDS[wish]}
             </li>
           ) : null}
           <li className="flex items-center gap-1.5">
-            <span className="h-3 w-3 rounded border border-line-strong bg-surface" />
+            <span className="h-3.5 w-3.5 rounded-seat border border-edge bg-paper" />
             Free
           </li>
           <li className="flex items-center gap-1.5">
-            <span className="h-3 w-3 rounded bg-surface-2" />
+            <span className="h-3.5 w-3.5 rounded-seat bg-paper-2" />
             Taken
           </li>
         </ul>
-        <div className="flex items-center gap-3">
-          <span className="text-[13px] text-muted" aria-live="polite">
-            {chosen ? `${chosen.id} · ${describeSeat(chosen.kinds)} · ${chosen.price > 0 ? money(chosen.price) : "no charge"}` : "Pick a seat"}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <span className="text-[13px] text-ink-2" aria-live="polite">
+            {chosen ? `${chosen.id}, ${describeSeat(chosen.kinds)}, ${chosen.price > 0 ? money(chosen.price) : "no charge"}` : "Pick a seat"}
           </span>
           <Button
             variant="primary"
