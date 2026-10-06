@@ -22,8 +22,10 @@ const AMENDABLE: ReadonlySet<Journey> = new Set<Journey>(["seat", "bags", "chang
 /** Journeys that end in an order. */
 const ORDERS: ReadonlySet<Journey> = new Set<Journey>([...AMENDABLE, "book"]);
 
+const MORE_ROOM = /\b(extra |more )?leg ?room\b|\bexit row\b|\b(more|extra) (space|room)\b|\b(space|room) for my (legs|knees)\b|\bstretch (out|my legs)\b/;
+
 const SEAT_WISHES: [RegExp, SeatKind][] = [
-  [/\b(extra |more )?leg ?room\b|\bexit row\b|\bmore (space|room)\b/, "legroom"],
+  [MORE_ROOM, "legroom"],
   [/\bwindow\b/, "window"],
   [/\baisle\b/, "aisle"],
   [/\b(at|near|in|up) the front\b|\bfront (row|seat)\b|\bup front\b/, "front"],
@@ -33,36 +35,57 @@ const SEAT_WISHES: [RegExp, SeatKind][] = [
 // No space allowed inside: "15 a window seat" must not read as seat 15A.
 const SEAT_CODE = /\b(\d{1,2})([a-f])\b/;
 
-const SEAT = /\bseats?\b|\bwindow\b|\baisle\b|\bleg ?room\b|\bexit row\b|\bsit(ting)?\b/;
+const SEAT = new RegExp(`\\bseats?\\b|\\bwindow\\b|\\baisle\\b|\\bsit(ting)?\\b|${MORE_ROOM.source}`);
 const BAGS = /\bbags?\b|\bbaggage\b|\bluggage\b|\bsuitcases?\b/;
 const CHECK_IN = /\bcheck(ed|ing)?( me| us)?[ -]?in\b|\bboarding pass\b/;
-const CANCEL = /\bcancel\b|\brefund\b/;
-const STATUS = /\bstatus\b|\bon time\b|\bdelay(ed|s)?\b|\bgate\b|\bboarding time\b|\bwhen (does|do|is|will) .*\b(leave|depart|board|take off|land|arrive)\b|\bwhat time\b/;
-const CHANGE = /\b(move|change|reschedule|rebook|push|shift|switch|postpone)\b|\bbring .*forward\b|\b(earlier|later|different|another) flight\b/;
+const CANCEL = /\bcancel\b|\brefund(ed)?\b|\bmoney back\b|\b(drop|scrap|ditch|call off)\b.*\b(flight|trip|booking)\b/;
+const STATUS =
+  /\bstatus\b|\bon time\b|\bdelay(ed|s)?\b|\bgate\b|\bboarding time\b|\bwhen (does|do|is|will) .*\b(leave|depart|board|take off|land|arrive)\b|\bwhat time\b|\b(left|landed|departed|arrived|taken off) yet\b|\b(be|is|it's|its|running) late\b|\bon schedule\b|\bwhere (do|does|will) (i|we|it) board\b/;
+const CHANGE =
+  /\b(move|change|reschedule|rebook|push|shift|switch|postpone)\b|\bbring .*forward\b|\b(earlier|later|different|another) flight\b|\b(delay|put back|put off) (my|the|our|it)\b/;
+/** "Can I go Friday instead": a travel verb and "instead", which only makes sense for a flight already booked. */
+const GO_INSTEAD = /\b(go|fly|travel|leave|depart)\b.*\binstead\b/;
 // Asking for a new flight. "A flight to London" asks for one; "my London
 // flight", anywhere in the clause, names one that is already booked.
 const BOOK_NEW = /\bnew (flight|ticket|booking|trip)\b/;
-const BOOK = /\bbook\b|\bbuy\b|\bneed (a|to) (flight|fly)\b|\b(fly|travel|go|get) (me )?to\b|\b(flights?|tickets?) to\b/;
-const OWNED = /\b(my|our)\b.*\b(flights?|trips?|bookings?|tickets?)\b|\b(the|that) (flight|trip|booking)\b/;
+const BOOK = /\bbook\b|\bbuy\b|\bneed (a|to) (flight|fly)\b|\b(flights?|tickets?) to\b/;
+// "Go to", "get to" and "be in" ask for a flight only when a place the airline
+// flies follows. "How early should I get to the airport" asks for nothing.
+const GO_TO = /\b(fly|travel|go|get) (me )?to\b|\b(need|have|want|got) to be in\b/;
+const OWNED = /\b(my|our)\b.*\b(flights?|trips?|bookings?|tickets?|plane)\b|\b(the|that) (flight|trip|booking)\b/;
 const A_FLIGHT = /\b(flights?|tickets?|fly|flying|trip)\b/;
 
 /** Whether a clause asks to book a flight, as opposed to doing something with one already booked. */
-function asksToBook(clause: string): boolean {
+function asksToBook(clause: string, namesAPlace = placesIn(clause).length > 0): boolean {
   if (BOOK_NEW.test(clause)) return true;
-  return BOOK.test(clause) && !OWNED.test(clause) && !CHANGE.test(clause);
+  return (BOOK.test(clause) || (GO_TO.test(clause) && namesAPlace)) && !OWNED.test(clause) && !CHANGE.test(clause);
 }
-const TRIPS = /\b(trips?|flights?|bookings?|reservations?|itinerary)\b/;
+const TRIPS = /\b(trips?|flights?|bookings?|reservations?|itinerary|travel( plans)?)\b/;
+
+// "I can't go to Istanbul any more" holds the words of a request to fly there
+// and means the opposite. Rules that match words cannot tell which is meant,
+// so a clause with a "not" in it is never taken as a request. It is left for
+// a model if there is one, and otherwise answered with a question.
+const NEGATED = /\b(can ?not|cant|couldnt|wont|will not|dont|do not|doesnt|didnt|not able to|unable to|no longer|not going)\b|n't\b/;
+
+/** Things people ask for that the desk has no journey for. */
+const NOT_OFFERED = /\b(pets?|dogs?|cats?|animals?|meals?|vegetarian|vegan|halal|kosher|upgrades?|business class|first class|lounges?)\b/;
 
 const YES = /^(yes|yep|yeah|ok|okay|sure|confirm|pay|go ahead|do it|please do|yes please|check me in)$/;
 const NO = /^(never ?mind|forget (it|that)|stop|cancel( (that|this|it))?|no thanks?|not now|leave it|nope|no|skip( it)?)$/;
 
 function normalise(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[’‘]/g, "'")
-    .replace(/[.!?]+$/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  return (
+    text
+      .toLowerCase()
+      .replace(/[’‘]/g, "'")
+      .replace(/[.!?]+$/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      // Politeness says nothing about what is wanted: "my bookings, please" is "my bookings".
+      .replace(/^(please|pls)[ ,]+/, "")
+      .replace(/[ ,]+(please|pls|thanks|thank you)$/, "")
+  );
 }
 
 /** Split a sentence into the separate things it asks for. */
@@ -107,6 +130,8 @@ function splitDates(clause: string, dates: readonly FoundDate[]): { names: Found
     if ("shiftDays" in date.wish) return "target";
     const before = clause.slice(0, date.index);
     const after = clause.slice(date.index + date.length);
+    // "Saturday instead of Thursday": Thursday is the flight there is, Saturday the one wanted.
+    if (/\binstead of\s+(the\s+)?$/.test(before)) return "name";
     if (/\b(to|for|until|till|onto|into)\s+(the\s+)?$/.test(before)) return "target";
     if (/^('s)?\s+(flight|trip|booking|one)\b/.test(after) || /\b(my|the)\s+$/.test(before)) return "name";
     return "unsure";
@@ -137,7 +162,7 @@ function bagCount(clause: string): number | undefined {
  * The intents in one clause, and the trip it names. Usually one intent; none
  * when the clause asks for nothing by itself, as in "on my London flight".
  */
-function intentsIn(clause: string, context: Context): { intents: Intent[]; trip: TripRef | undefined; dates: FoundDate[] } {
+function intentsIn(clause: string, context: Context): { intents: Intent[]; trip: TripRef | undefined; unsure: boolean } {
   const dates = findDates(clause, context.today);
   const has = (pattern: RegExp) => pattern.test(clause);
   const places = placesIn(clause);
@@ -145,9 +170,21 @@ function intentsIn(clause: string, context: Context): { intents: Intent[]; trip:
 
   const seat = has(SEAT);
   const bags = has(BAGS);
+  // "A day later" and "can I go Friday instead" are about a flight already booked, whatever else is said.
+  const shifted = dates.some((date) => "shiftDays" in date.wish);
+  const instead = has(GO_INSTEAD) && dates.length > 0 && places.length === 0;
   // "Book a window seat" asks for a seat. "Book a flight", or naming a place, asks for a flight.
-  const book = asksToBook(clause) && (has(A_FLIGHT) || places.length > 0 || (!seat && !bags));
-  const change = has(CHANGE) && !seat && !bags && !book;
+  const book = asksToBook(clause) && !shifted && !instead && (has(A_FLIGHT) || places.length > 0 || (!seat && !bags));
+  const change = (has(CHANGE) || shifted || instead) && !seat && !bags && !book;
+
+  if (has(NEGATED)) {
+    // The clause may still say which trip is meant ("I can't make Thursday"),
+    // and "I don't want a middle seat" still asks for a seat: just not that one.
+    const trip = tripRefIn(clause, context, dates);
+    if (seat) return { intents: [{ journey: "seat", ...(trip ? { trip } : {}) }], trip, unsure: false };
+    const wouldAsk = book || change || bags || has(CHECK_IN) || has(CANCEL) || has(STATUS) || /\b(go|make|travel|fly|come)\b/.test(clause);
+    return { intents: [], trip, unsure: wouldAsk };
+  }
 
   // In a request to book, a place and a date say where and when to fly. In
   // a request to move a flight, some dates name the flight and one is the
@@ -177,9 +214,9 @@ function intentsIn(clause: string, context: Context): { intents: Intent[]; trip:
     const asksToSee = /\b(show|see|list|what|which|when|upcoming|view|all|any|have)\b/.test(clause);
     const justThem = /^(my|the) (\w+ )?(trips|flights|bookings|reservations|itinerary)$/.test(clause);
     if (has(TRIPS) && (asksToSee || justThem)) intents.push({ journey: "trips" });
-    else if (/\bwhere am i (going|flying|headed)\b/.test(clause)) intents.push({ journey: "trips" });
+    else if (/\bwhere am i (going|flying|headed)\b|\bwhat (have|did) i (booked|book)\b|\bwhat('s| is) booked\b/.test(clause)) intents.push({ journey: "trips" });
   }
-  return { intents, trip, dates };
+  return { intents, trip, unsure: false };
 }
 
 /** Join intents for the same journey, later details winning: "a seat" then "window" is one request. */
@@ -208,19 +245,45 @@ function shareTrip(intents: Intent[]): Intent[] {
   return intents.map((intent) => (needsTrip(intent) ? ({ ...intent, trip: named } as Intent) : intent));
 }
 
-/** Read every clause, in order. A clause that only names a trip names it for the request before it. */
-function intentsOf(text: string, context: Context): Intent[] {
+type Read = {
+  intents: Intent[];
+  /** A clause held the words of a request and a "not". Its trip, if it named one, is kept for the question back. */
+  unsure: { trip: TripRef | undefined } | null;
+};
+
+/**
+ * Read every clause, in order. A clause that only names a trip names it for
+ * the request beside it: the one before ("a window seat, on my London
+ * flight") or the one after ("I can't make Thursday, can I go Friday instead").
+ */
+function intentsOf(text: string, context: Context): Read {
   let all: Intent[] = [];
+  let waiting: TripRef | undefined;
+  let unsure: Read["unsure"] = null;
+
   for (const clause of clauses(text)) {
-    const { intents, trip } = intentsIn(clause, context);
-    if (intents.length > 0) {
-      all = mergeIntents(all, intents);
-    } else if (trip && all.length > 0) {
-      const last = all[all.length - 1];
-      if (needsTrip(last)) all[all.length - 1] = { ...last, trip } as Intent;
+    const read = intentsIn(clause, context);
+    if (read.unsure) unsure = { trip: read.trip };
+    if (read.intents.length > 0) {
+      const named = waiting;
+      all = mergeIntents(all, named ? read.intents.map((intent) => (needsTrip(intent) ? ({ ...intent, trip: named } as Intent) : intent)) : read.intents);
+      waiting = undefined;
+    } else if (read.trip && all.length > 0 && needsTrip(all[all.length - 1])) {
+      all[all.length - 1] = { ...all[all.length - 1], trip: read.trip } as Intent;
+    } else if (read.trip) {
+      waiting = read.trip;
     }
   }
-  return shareTrip(all);
+  return { intents: shareTrip(all), unsure: all.length === 0 ? unsure : null };
+}
+
+/** What to say back when the words held a request and a "not": a question, with the ways to answer it. */
+function askBack(trip: TripRef | undefined, context: Context): string {
+  const matches = trip ? matchTrips(trip, context.account.bookings) : [];
+  const city = matches.length === 1 ? matches[0].flight.toCity : null;
+  return city
+    ? `I am not sure what you would like done about your ${city} trip. You can say "cancel my ${city} trip" or "move my ${city} flight to Friday".`
+    : 'I am not sure what you would like done. You can say it straight, such as "cancel my booking" or "move my flight to Friday".';
 }
 
 /** One of the flights on screen, picked out by its number, its time or its place in the list. */
@@ -334,16 +397,19 @@ function detailFor(active: NonNullable<Context["active"]>, text: string, context
 }
 
 // "How much is a bag?" asks what something costs. It does not ask for one.
-const ASKS_ABOUT = /^(how much|how many|what does|what do|what is the (price|cost|fee|charge)|what's the (price|cost|fee|charge)|what are the|does it cost|is there a (fee|charge))\b/;
+const ASKS_ABOUT =
+  /^(how much|how many|what does|what do|what are the|does it cost|is there a (fee|charge)|is it free|(do|will|would) i (have|need) to pay)\b|^what('s| is|s) the\b.*\b(price|cost|fee|charge|allowance|limit)\b/;
+// "When does check-in open?" asks about the airline's rules, not about one flight.
+const ASKS_WHEN = /^(when|what time|how (early|late|long before))\b.*\b(open|opens|close|closes|start|starts|begin|begins|shown|announced)\b/;
 
 /** The fact that answers a question about cost or rules, when the rules have one. */
 function factFor(text: string): FactName | null {
   if (BAGS.test(text) || /\b(carry[- ]on|cabin bag|kg|weigh)/.test(text)) return "bags";
   if (SEAT.test(text)) return "seats";
-  if (CANCEL.test(text)) return "cancel";
-  if (CHANGE.test(text)) return "change";
+  if (CANCEL.test(text) || /\bcancell?(ation|ing)\b|\brefunds\b/.test(text)) return "cancel";
+  if (CHANGE.test(text) || /\b(mov|chang|reschedul|rebook|switch)(e|es|ed|ing)\b/.test(text)) return "change";
   if (CHECK_IN.test(text)) return "checkIn";
-  if (/\b(bag drop|boarding|gate)\b/.test(text)) return "airport";
+  if (/\b(bag drop|boarding|gates?)\b/.test(text)) return "airport";
   return null;
 }
 
@@ -354,6 +420,8 @@ function viewsFor(text: string): ViewName[] | null {
   if (/\b(how much|what) (have|did|do) i (spen[dt]|paid|pay)\b|\bmy spending\b|\btotal (spen[dt]|spending|cost)\b|\bspent (so far|this year|on flights)\b/.test(text)) {
     return ["spending", "spending-by-month"];
   }
+  // "What did my trips cost me" is about the traveller's own money. "What does a bag cost" is not.
+  if (/\b(what|how much) (did|do|have|has) (my|all my|all the|the) .*\b(cost|costing)\b/.test(text)) return ["spending", "spending-by-month"];
   if (/\b(payments|receipts|transactions|charges)\b/.test(text) && /\b(my|show|see|list|what|recent|latest|last|all)\b/.test(text)) return ["payments"];
   return null;
 }
@@ -376,14 +444,23 @@ export function understandByRules(words: string, context: Context): Understandin
     const fact = factFor(text);
     return fact ? { kind: "say", text: FACTS[fact] } : { kind: "unknown" };
   }
+  if (ASKS_WHEN.test(text) && !OWNED.test(text)) {
+    const fact = factFor(text);
+    if (fact === "checkIn" || fact === "airport") return { kind: "say", text: FACTS[fact] };
+  }
+  // "How early should I get to the airport?"
+  if (/^how (early|late|soon|long before)\b/.test(text) && /\b(airport|arrive|get there|be there|turn up)\b/.test(text)) return { kind: "say", text: FACTS.airport };
 
-  let intents = intentsOf(text, context);
+  const read = intentsOf(text, context);
+  let { intents } = read;
   if (intents.length === 0 && context.active) intents = detailFor(context.active, text, context);
 
   if (intents.length === 0) {
+    if (read.unsure) return { kind: "unknown", hint: askBack(read.unsure.trip, context) };
     if (/^(hi|hello|hey|good (morning|afternoon|evening)|salam|hiya)\b/.test(text)) return { kind: "chat", about: "hello" };
     if (/^(thanks?|thank you|cheers|great|perfect|nice)\b/.test(text)) return { kind: "chat", about: "thanks" };
     if (/\bhelp\b|\bwhat can you do\b|\bwhat do you do\b|\bhow does this work\b/.test(text)) return { kind: "chat", about: "help" };
+    if (NOT_OFFERED.test(text)) return { kind: "say", text: FACTS.cannot };
     return { kind: "unknown" };
   }
 

@@ -104,6 +104,37 @@ describe("rules first, model second", () => {
   });
 });
 
+describe("a sentence with a not in it", () => {
+  const cannotGo = "I can't go to Istanbul anymore";
+  const askBack = 'I am not sure what you would like done about your Istanbul trip. You can say "cancel my Istanbul trip" or "move my Istanbul flight to Friday".';
+
+  it("is asked back about when there is no model, and nothing is booked", async () => {
+    const { store, last, asked } = setup([], { key: false });
+    await store.dispatch(ask(cannotGo));
+    expect(last()).toMatchObject({ brain: "rules", run: null, reply: askBack });
+    expect(asked()).toEqual([]);
+  });
+
+  it("goes to the model when there is one, which can read what the rules will not guess at", async () => {
+    const { store, last } = setup([json({ kind: "request", intents: [{ journey: "cancel", trip: "R3XD8N" }] })]);
+    await store.dispatch(ask(cannotGo));
+    expect(last()).toMatchObject({ brain: "model", intents: [{ journey: "cancel", trip: { code: "R3XD8N" } }] });
+    expect(waitingStep(last().run)?.widget).toBe("refund");
+  });
+
+  it("is still asked back about when the model does not understand it either", async () => {
+    const { store, last } = setup([json({ kind: "unknown" })]);
+    await store.dispatch(ask(cannotGo));
+    expect(last()).toMatchObject({ brain: "model", model: MODEL, run: null, reply: askBack });
+  });
+
+  it("keeps the question back when the model cannot be reached", async () => {
+    const { store, last } = setup([Response.json({ error: "down" }, { status: 500 })]);
+    await store.dispatch(ask(cannotGo));
+    expect(last().reply).toBe(`${askBack} The model could not help: The model's service answered 500. down`);
+  });
+});
+
 describe("while the model is being asked", () => {
   it("shows the words at once, and nothing else can be asked until it answers", async () => {
     let release: (response: Response) => void = () => {};
@@ -178,16 +209,16 @@ describe("answering in words", () => {
   it("answers a question asked partway through a journey under it, and keeps the journey", async () => {
     const { store, last, turns } = setup([json({ kind: "talk" }), words("Extra legroom is AED 160.")]);
     await store.dispatch(ask("a window seat on my London flight"));
-    await store.dispatch(ask("what does it cost to have room for my knees?"));
+    await store.dispatch(ask("is the food any good on board?"));
     expect(turns()).toHaveLength(1);
-    expect(last().marks).toEqual([{ words: "what does it cost to have room for my knees?", beforeStep: null, reply: "Extra legroom is AED 160.", by: MODEL }]);
+    expect(last().marks).toEqual([{ words: "is the food any good on board?", beforeStep: null, reply: "Extra legroom is AED 160.", by: MODEL }]);
     expect(last().streaming).toBe(false);
     expect(waitingStep(last().run)?.widget).toBe("seat-map");
   });
 
   it("replaces a reply that fails with the reason, and no longer claims a model wrote it", async () => {
     const { store, last } = setup([json({ kind: "talk" }), Response.json({ error: { message: "Quota used up." } }, { status: 403 })]);
-    await store.dispatch(ask("can I bring a cat?"));
+    await store.dispatch(ask("what is your favourite airport?"));
     expect(last()).toMatchObject({ reply: "The model's service answered 403. Quota used up.", replyBy: null, streaming: false });
   });
 

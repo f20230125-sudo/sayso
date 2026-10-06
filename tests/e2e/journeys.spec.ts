@@ -31,6 +31,44 @@ test.describe("the desk", () => {
   });
 });
 
+test.describe("sentences the desk will not guess at", () => {
+  test("someone who says they cannot go is asked what they want, and nothing is booked", async ({ page }) => {
+    await openDesk(page);
+    await say(page, "I can't go to Istanbul anymore");
+    await expect(page.getByText('I am not sure what you would like done about your Istanbul trip. You can say "cancel my Istanbul trip" or "move my Istanbul flight to Friday".')).toBeVisible();
+    await expect(flights(page)).toHaveCount(0);
+    await expect(page.getByRole("form", { name: "Flight search" })).toHaveCount(0);
+
+    // The way it suggests then works.
+    await say(page, "cancel my Istanbul trip");
+    await expect(page.getByRole("region", { name: "Refund" })).toBeVisible();
+  });
+
+  test("a question about cost is answered, not turned into a request", async ({ page }) => {
+    await openDesk(page);
+    await say(page, "How early should I get to the airport?");
+    await expect(page.getByText("Bag drop closes 1 hour before a flight leaves, boarding starts 40 minutes before, and the gate is shown 3 hours before.")).toBeVisible();
+    await say(page, "do I have to pay to pick a seat");
+    await expect(page.getByText(/^Choosing a seat costs AED 35 for a window or aisle seat/)).toBeVisible();
+    await expect(cabin(page)).toHaveCount(0);
+  });
+
+  test("a flight is moved, not booked, when the words say a day later", async ({ page }) => {
+    await openDesk(page);
+    await say(page, "I need to fly a day later");
+    // It is about a trip the traveller has, so it asks which one, then offers the days around it.
+    await expect(page.getByText("Which trip is this for?")).toBeVisible();
+    await page.getByRole("list", { name: "Your trips" }).getByRole("button", { name: /London/ }).click();
+    await expect(days(page).getByRole("button", { name: /^Thu 8 Oct.*the day you fly now/ })).toBeVisible();
+    await expect(page.getByRole("form", { name: "Flight search" })).toHaveCount(0);
+
+    // With the trip named, the day is worked out and the days are skipped.
+    await say(page, "never mind");
+    await say(page, "move my London flight a day later");
+    await expect(page.getByText("Here are the flights to London on Fri 9 Oct, with what each costs against your current fare.")).toBeVisible();
+  });
+});
+
 test.describe("journeys", () => {
   test("three requests in one sentence end in one payment", async ({ page }) => {
     await openDesk(page);

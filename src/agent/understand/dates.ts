@@ -82,6 +82,19 @@ const RULES: Rule[] = [
     },
   },
   {
+    // "push it back a week", "bring it forward two days"
+    pattern: new RegExp(`\\b(back|forward) (?:by )?${COUNT} (day|week)s?\\b`, "g"),
+    read: (match) => {
+      const size = countOf(match[2]) * (match[3] === "week" ? 7 : 1);
+      return { wish: { shiftDays: match[1] === "back" ? size : -size } };
+    },
+  },
+  {
+    // "delay it by a week": with no "forward", by so much means later
+    pattern: new RegExp(`\\bby ${COUNT} (day|week)s?\\b`, "g"),
+    read: (match) => ({ wish: { shiftDays: countOf(match[1]) * (match[2] === "week" ? 7 : 1) } }),
+  },
+  {
     // "in three days", "in a week"
     pattern: new RegExp(`\\bin ${COUNT} (day|week)s?\\b`, "g"),
     read: (match, today) => ({ wish: day(addDays(today, countOf(match[1]) * (match[2] === "week" ? 7 : 1))) }),
