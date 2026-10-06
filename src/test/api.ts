@@ -15,7 +15,8 @@ import { seatMapOf } from "@/airline/seats";
 // or the store also exercises the routes it depends on.
 
 export const TODAY = "2026-10-06"; // a Tuesday
-export const NOW = new Date(2026, 9, 6, 10, 30);
+/** 10:30 that morning, in Dubai. */
+export const NOW = new Date("2026-10-06T10:30:00+04:00");
 
 export type Seen = { method: string; path: string; body: unknown }[];
 
