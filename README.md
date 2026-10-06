@@ -29,7 +29,7 @@ Eight journeys, in your own words, several in one sentence if you like:
 
 Every request goes through four steps, each plain TypeScript with no React in it:
 
-1. **Understand.** The words become intents: which journey, which trip, what details. Rules do this with no model and no key.
+1. **Understand.** The words become intents: which journey, which trip, what details. Rules do this first, with no model and no key. What they cannot read goes to a model, if you have given one.
 2. **Plan.** The intents become a list of steps: say a line, call the airline's API, show a component. A plan is plain data.
 3. **Run.** The steps run one by one. When a component needs an answer, the run pauses, and picks up again when the answer is in.
 4. **Check.** The result is compared with what was asked for, and the comparison is shown.
@@ -39,6 +39,16 @@ Three rules hold it together:
 - **The plan chooses, the code computes.** A plan can only ask for components from a fixed list (`src/widgets/specs.ts`), with the properties each one's schema allows. Every price, seat and flight on screen comes from the airline's API by reference, never from free text.
 - **A run is data, not a process.** "Waiting for a seat choice" is a value in the Redux store and in the browser's storage. Reload the page halfway through and the seat map is still there, waiting.
 - **The server never trusts a price from the browser.** Confirming an order makes the server work the price out again and refuse if it differs.
+
+## The model is optional
+
+The desk works with no model: rules understand the eight journeys and answer the commonest questions about cost from the airline's own facts.
+
+Add a key in the sparkle menu (Gemini and Groq both have free tiers) and the desk also reads freer sentences ("I'd love to look out at the clouds on the way to London") and answers other questions in words. The key stays in your browser and calls go straight from the browser to the provider. Sayso's server never sees it.
+
+- **Rules first, model second.** A sentence the rules can read never reaches the model.
+- **The model's reply is data, and is checked.** It must be JSON that fits a schema, names only bookings you have and places the airline flies. A reply that does not fit is sent back once for repair, then dropped.
+- **Each reply says who understood it**, and an answer written by a model is marked as such.
 
 ## The airline's REST API
 
@@ -80,6 +90,7 @@ src/app/            the page, and the REST routes under api/
 src/airline/        timetable, cabin, pricing, the demo account (no database)
 src/agent/          understand, plan, run, check: plain TypeScript, no React
 src/widgets/        the components a reply is built from, and their schemas
+src/ai/             the visitor's model settings, and one caller for every provider
 src/store/          Redux Toolkit: conversation, account, saving to the browser
 src/components/     the desk page, the ask bar, a turn of the conversation
 ```

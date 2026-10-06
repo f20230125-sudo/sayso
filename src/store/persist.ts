@@ -32,11 +32,15 @@ const turnSchema = z.object({
   words: z.string(),
   understanding: z.object({ kind: z.string() }).loose(),
   brain: z.enum(["rules", "model"]),
+  model: z.string().nullable().default(null),
   understoodMs: z.number(),
   intents: z.array(z.object({ journey: z.string() }).loose()),
   run: runSchema.nullable(),
   reply: z.string().nullable(),
-  marks: z.array(z.object({ words: z.string(), beforeStep: z.string().nullable(), reply: z.string().optional() })),
+  replyBy: z.string().nullable().default(null),
+  // A reply that was still arriving when the page closed has stopped arriving.
+  streaming: z.boolean().default(false).transform(() => false),
+  marks: z.array(z.object({ words: z.string(), beforeStep: z.string().nullable(), reply: z.string().optional(), by: z.string().optional() })),
   calls: z.array(z.object({ stepId: z.string() }).loose()),
   closing: z.string().nullable(),
 });

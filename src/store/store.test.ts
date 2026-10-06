@@ -222,7 +222,7 @@ describe("when things go wrong", () => {
     await Promise.resolve();
     expect(last().run?.status).toBe("running");
 
-    store.dispatch(stop(last().id));
+    store.dispatch(stop());
     expect(last()).toMatchObject({ run: { status: "stopped" }, closing: "Stopped. Nothing was changed." });
 
     release(Response.json({}));

@@ -11,13 +11,18 @@ import {
   chatReply,
 } from "@/agent/replies";
 import { advance, answerEvent, startRun, waitingStep } from "@/agent/run";
-import type { Context, Json, Understanding } from "@/agent/types";
+import { talkPrompt } from "@/agent/talk";
+import type { Brain, Context, Json, Understanding } from "@/agent/types";
+import { understandByModel } from "@/agent/understand/model";
 import { mergeIntents, understandByRules } from "@/agent/understand/rules";
+import { ModelError, complete, stream } from "@/ai/chat";
+import { loadAiConfig, toAiSettings, type AiSettings } from "@/ai/settings";
 import { localDay } from "@/airline/dates";
 import type { Booking, OrderResult } from "@/airline/schema";
 import { accountActions } from "./accountSlice";
-import { conversationActions, type Turn } from "./conversationSlice";
+import { conversationActions, type Mark, type Turn } from "./conversationSlice";
 import { forget, load } from "./persist";
+import { settingsActions } from "./settingsSlice";
 import type { AppThunk, RootState } from "./store";
 
 // What happens when the traveller says something or touches a component.
@@ -26,10 +31,19 @@ import type { AppThunk, RootState } from "./store";
 // the join: they hand the agent what it needs from the store, and turn each
 // event it reports into an action.
 
+/** The key under which the call that is understanding the latest words can be stopped. */
+const UNDERSTANDING = "understanding";
+
 /** The turn whose journey is waiting for the traveller, if the latest one is. */
 export function activeTurnOf(state: RootState): Turn | null {
   const last = state.conversation.turns.at(-1);
   return last?.run?.status === "waiting" ? last : null;
+}
+
+/** Whether the desk is busy with something that can be stopped. */
+export function isBusy(state: RootState): boolean {
+  const last = state.conversation.turns.at(-1);
+  return state.conversation.pending !== null || last?.run?.status === "running" || last?.streaming === true;
 }
 
 /** The booking the conversation last dealt with: the one a request means when it names none. */
@@ -47,8 +61,10 @@ export const start = (): AppThunk => (dispatch, _getState, extra) => {
   const saved = load(extra.storage, localDay(extra.now()));
   dispatch(accountActions.accountLoaded(saved.account));
   dispatch(conversationActions.conversationLoaded(saved.turns));
+  dispatch(settingsActions.aiConfigSet(loadAiConfig(extra.storage)));
 };
 
+/** Fresh trips and an empty conversation. The model settings are the visitor's own and are kept. */
 export const startOver = (): AppThunk => (dispatch, _getState, extra) => {
   for (const controller of extra.controllers.values()) controller.abort();
   extra.controllers.clear();
@@ -88,7 +104,19 @@ const leave =
     dispatch(conversationActions.turnClosed({ turnId, closing }));
   };
 
-export const stop = (turnId: string): AppThunk => leave(turnId, STOPPED);
+/** Stop whatever the desk is in the middle of: understanding, a call, or a reply still arriving. */
+export const stop = (): AppThunk => (dispatch, getState, extra) => {
+  extra.controllers.get(UNDERSTANDING)?.abort();
+  const last = getState().conversation.turns.at(-1);
+  if (!last) return;
+  if (last.streaming) {
+    extra.controllers.get(last.id)?.abort();
+    extra.controllers.delete(last.id);
+    dispatch(conversationActions.replyEnded({ turnId: last.id }));
+  } else if (last.run?.status === "running") {
+    dispatch(leave(last.id, STOPPED));
+  }
+};
 
 /** The traveller chose something on a component. */
 export const answer =
@@ -103,22 +131,81 @@ export const answer =
 
 let turnCount = 0;
 
-function newTurn(words: string, understanding: Understanding, understoodMs: number): Turn {
+type Understood = { understanding: Understanding; brain: Brain; model: string | null; understoodMs: number };
+
+function newTurn(words: string, understood: Understood): Turn {
   turnCount += 1;
   return {
     id: `turn-${Date.now().toString(36)}-${turnCount}`,
     words,
-    understanding,
-    brain: "rules",
-    understoodMs,
+    ...understood,
     intents: [],
     run: null,
     reply: null,
+    replyBy: null,
+    streaming: false,
     marks: [],
     calls: [],
     closing: null,
   };
 }
+
+/**
+ * Work out what the words mean. The rules go first: they cost nothing and
+ * answer at once. Only what they cannot read is put to a model, and only when
+ * the visitor has given one. Returns null when the visitor stopped it.
+ */
+const understand =
+  (words: string, context: Context): AppThunk<Promise<(Understood & { trouble: string | null }) | null>> =>
+  async (dispatch, getState, extra) => {
+    const began = extra.clock();
+    const took = () => Math.round(extra.clock() - began);
+    const byRules = understandByRules(words, context);
+    const ai = toAiSettings(getState().settings.ai);
+    if (byRules.kind !== "unknown" || !ai) return { understanding: byRules, brain: "rules", model: null, understoodMs: took(), trouble: null };
+
+    // The words go on the page at once; the model's reading follows.
+    const controller = new AbortController();
+    extra.controllers.set(UNDERSTANDING, controller);
+    dispatch(conversationActions.pendingSet({ words }));
+    try {
+      const byModel = await understandByModel(words, context, (messages) =>
+        complete(ai, messages, { fetch: extra.fetch, signal: controller.signal }, { json: true }),
+      );
+      // A reply that did not hold up after one repair is treated as "not understood".
+      return { understanding: byModel ?? { kind: "unknown" }, brain: "model", model: ai.model, understoodMs: took(), trouble: null };
+    } catch (problem) {
+      if (controller.signal.aborted) return null;
+      const trouble = problem instanceof ModelError ? problem.message : "The model could not be asked.";
+      return { understanding: { kind: "unknown" }, brain: "rules", model: null, understoodMs: took(), trouble };
+    } finally {
+      extra.controllers.delete(UNDERSTANDING);
+      dispatch(conversationActions.pendingSet(null));
+    }
+  };
+
+/** Answer a question in words, a few at a time as they arrive from the model. */
+const talk =
+  (turnId: string, words: string, context: Context, ai: AiSettings): AppThunk<Promise<void>> =>
+  async (dispatch, _getState, extra) => {
+    const controller = new AbortController();
+    extra.controllers.set(turnId, controller);
+    dispatch(conversationActions.turnStreaming({ turnId }));
+    const messages = [
+      { role: "system" as const, content: talkPrompt(context) },
+      { role: "user" as const, content: words },
+    ];
+    try {
+      await stream(ai, messages, { fetch: extra.fetch, signal: controller.signal }, (piece) => dispatch(conversationActions.replyGrew({ turnId, piece })));
+      dispatch(conversationActions.replyEnded({ turnId }));
+    } catch (problem) {
+      // Stopped by the visitor: what has arrived stays, and `stop` has ended it.
+      if (controller.signal.aborted) return;
+      dispatch(conversationActions.replyEnded({ turnId, instead: problem instanceof ModelError ? problem.message : "The model could not answer that." }));
+    } finally {
+      if (extra.controllers.get(turnId) === controller) extra.controllers.delete(turnId);
+    }
+  };
 
 /** The traveller said something. */
 export const ask =
@@ -126,7 +213,7 @@ export const ask =
   async (dispatch, getState, extra) => {
     const words = said.trim();
     const { account } = getState().account;
-    if (words === "" || !account) return;
+    if (words === "" || !account || isBusy(getState())) return;
 
     const today = localDay(extra.now());
     const now = extra.now().toISOString();
@@ -138,15 +225,17 @@ export const ask =
       ...(active?.run && waiting ? { active: { intents: active.intents, widget: waiting.widget, props: fill(waiting.props, active.run.results) } } : {}),
     };
 
-    const began = extra.clock();
-    const understanding = understandByRules(words, context);
-    const understoodMs = Math.round(extra.clock() - began);
+    const understood = await dispatch(understand(words, context));
+    if (!understood) return;
+    const { understanding, trouble, ...how } = understood;
+    const ai = toAiSettings(getState().settings.ai);
+    const notUnderstood = (line: string) => (trouble ? `${line} The model could not help: ${trouble}` : line);
 
     // Words that belong to the journey in progress stay inside its turn.
     if (active?.run && waiting) {
       const turnId = active.id;
-      const mark = (beforeStep: string | null, reply?: string) =>
-        dispatch(conversationActions.markAdded({ turnId, mark: { words, beforeStep, ...(reply ? { reply } : {}) } }));
+      const mark = (beforeStep: string | null, more: Partial<Mark> = {}) =>
+        dispatch(conversationActions.markAdded({ turnId, mark: { words, beforeStep, ...more } }));
 
       switch (understanding.kind) {
         case "answer":
@@ -161,7 +250,7 @@ export const ask =
           const intents = mergeIntents(active.intents, understanding.intents);
           const changed = replan(active.run, planFor(intents, { today, now, account, focus: focusOf(getState()) }));
           if (changed.changedAt === null) {
-            mark(null, ALREADY_SO);
+            mark(null, { reply: ALREADY_SO });
             return;
           }
           mark(changed.run.steps[changed.changedAt]?.id ?? null);
@@ -170,13 +259,25 @@ export const ask =
           return;
         }
         case "chat":
-          mark(null, chatReply(understanding.about));
+          mark(null, { reply: chatReply(understanding.about) });
           return;
         case "cannot":
-          mark(null, understanding.why);
+          mark(null, { reply: understanding.why });
+          return;
+        case "say":
+          mark(null, { reply: understanding.text });
+          return;
+        case "talk":
+          if (ai) {
+            // The question is answered under the journey, which stays where it is.
+            mark(null, { reply: "", by: ai.model });
+            await dispatch(talk(turnId, words, context, ai));
+            return;
+          }
+          mark(null, { reply: NOT_UNDERSTOOD_WHILE_WAITING });
           return;
         case "unknown":
-          mark(null, NOT_UNDERSTOOD_WHILE_WAITING);
+          mark(null, { reply: notUnderstood(NOT_UNDERSTOOD_WHILE_WAITING) });
           return;
         case "request":
           // Something else entirely. The journey in progress is left where it is.
@@ -185,7 +286,7 @@ export const ask =
       }
     }
 
-    const turn = newTurn(words, understanding, understoodMs);
+    const turn = newTurn(words, { understanding, ...how });
     switch (understanding.kind) {
       case "request":
       case "amend": {
@@ -201,15 +302,23 @@ export const ask =
       case "cannot":
         turn.reply = understanding.why;
         break;
+      case "say":
+        turn.reply = understanding.text;
+        break;
+      case "talk":
+        turn.reply = ai ? "" : NOT_UNDERSTOOD;
+        turn.replyBy = ai ? ai.model : null;
+        break;
       case "answer":
       case "abandon":
         turn.reply = NOTHING_IN_PROGRESS;
         break;
       case "unknown":
-        turn.reply = NOT_UNDERSTOOD;
+        turn.reply = notUnderstood(NOT_UNDERSTOOD);
         break;
     }
 
     dispatch(conversationActions.turnAdded(turn));
     if (turn.run) await dispatch(drive(turn.id));
+    else if (understanding.kind === "talk" && ai) await dispatch(talk(turn.id, words, context, ai));
   };

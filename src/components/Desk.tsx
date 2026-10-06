@@ -1,6 +1,6 @@
 "use client";
 
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import { suggestions } from "@/agent/replies";
 import { waitingStep } from "@/agent/run";
@@ -9,13 +9,15 @@ import { localDay } from "@/airline/dates";
 import { AIRLINE } from "@/airline/places";
 import type { Account } from "@/airline/schema";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { ask, startOver, stop } from "@/store/thunks";
+import { settingsActions } from "@/store/settingsSlice";
+import { ask, isBusy, startOver, stop } from "@/store/thunks";
 import { TripCard } from "@/widgets/TripCard";
 import type { WidgetType } from "@/widgets/specs";
 import { AskBar } from "./AskBar";
+import { SettingsDialog } from "./SettingsDialog";
 import { ThemeToggle } from "./ThemeToggle";
 import { useToast } from "./toast";
-import { TurnView } from "./TurnView";
+import { Said, TurnView, Working } from "./TurnView";
 import { IconButton } from "./ui";
 
 // The whole page: a bar across the top, the conversation down the middle, and
@@ -96,17 +98,19 @@ export function Desk() {
   const { showToast } = useToast();
   const account = useAppSelector((state) => state.account.account);
   const turns = useAppSelector((state) => state.conversation.turns);
+  const pending = useAppSelector((state) => state.conversation.pending);
+  const model = useAppSelector((state) => (state.settings.ai.provider === "none" ? null : state.settings.ai.model));
+  const busy = useAppSelector(isBusy);
   const today = useMemo(() => localDay(new Date()), []);
 
   const last = turns.at(-1);
-  const busy = last?.run?.status === "running";
   const waiting = waitingStep(last?.run ?? null);
 
   // Keep the newest thing in view as the conversation grows.
   const end = useRef<HTMLDivElement>(null);
-  const progress = `${turns.length}:${last?.run?.at ?? 0}:${last?.run?.status ?? ""}:${last?.marks.length ?? 0}`;
+  const progress = `${turns.length}:${last?.run?.at ?? 0}:${last?.run?.status ?? ""}:${last?.marks.length ?? 0}:${pending ? 1 : 0}:${last?.reply?.length ?? 0}`;
   useEffect(() => {
-    if (turns.length === 0) return;
+    if (turns.length === 0 && !pending) return;
     const scroll = () => end.current?.scrollIntoView({ behavior: "smooth", block: "end" });
     scroll();
     // Once more after a component has finished folding, which changes the height.
@@ -134,6 +138,12 @@ export function Desk() {
               {account.traveller.name}
             </span>
           ) : null}
+          <IconButton label={model ? `Language model: ${model}` : "Language model: none, built-in rules only"} onClick={() => dispatch(settingsActions.settingsOpened())}>
+            <span className="relative">
+              <Sparkles size={16} />
+              {model ? <span className="absolute -right-1 -top-1 h-1.5 w-1.5 rounded-full bg-ok" aria-hidden="true" /> : null}
+            </span>
+          </IconButton>
           <IconButton
             label="Start over with fresh demo trips"
             onClick={() => {
@@ -149,11 +159,17 @@ export function Desk() {
 
       <main className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex w-full max-w-[680px] flex-col gap-12 px-5 pb-10 pt-8">
-          {!account ? null : turns.length === 0 ? (
+          {!account ? null : turns.length === 0 && !pending ? (
             <Welcome account={account} today={today} onAsk={onAsk} />
           ) : (
             turns.map((turn) => <TurnView key={turn.id} turn={turn} />)
           )}
+          {pending ? (
+            <section className="flex flex-col gap-4" aria-label={`You said: ${pending.words}`}>
+              <Said words={pending.words} />
+              <Working label={`Asking ${model ?? "the model"} what that means`} />
+            </section>
+          ) : null}
           <div ref={end} aria-hidden="true" />
         </div>
       </main>
@@ -164,11 +180,13 @@ export function Desk() {
             busy={busy}
             hint={waiting ? (WAITING_HINTS[waiting.widget] ?? "Choose above, or say what you need") : "Say what you need"}
             onAsk={onAsk}
-            onStop={() => last && dispatch(stop(last.id))}
+            onStop={() => dispatch(stop())}
           />
           <p className="mt-2 text-center text-[11px] text-faint">A demo. {AIRLINE.name} is made up and nothing here is really booked or charged.</p>
         </div>
       </div>
+
+      <SettingsDialog />
     </div>
   );
 }

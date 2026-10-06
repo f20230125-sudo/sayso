@@ -16,6 +16,8 @@ export type Mark = {
   beforeStep: string | null;
   /** A plain line in answer, when the words changed nothing: "That is already how it is set." */
   reply?: string;
+  /** The model that wrote the reply, when one did. */
+  by?: string;
 };
 
 /** One call to the API, kept for the "How it worked" panel. */
@@ -26,6 +28,8 @@ export type Turn = {
   words: string;
   understanding: Understanding;
   brain: Brain;
+  /** The model that was asked, when the rules could not read the words. */
+  model: string | null;
   /** How long understanding took, in milliseconds. */
   understoodMs: number;
   /** What is being done now: the first request with any later changes folded in. */
@@ -34,22 +38,61 @@ export type Turn = {
   run: RunState | null;
   /** A plain line in reply, for turns with no run. */
   reply: string | null;
+  /** The model that wrote the reply, when one did. Null for the desk's own fixed lines. */
+  replyBy: string | null;
+  /** The reply is still arriving, a few words at a time. */
+  streaming: boolean;
   marks: Mark[];
   calls: CallRecord[];
   /** A last line for a journey that was left: "Left unfinished. Nothing was changed." */
   closing: string | null;
 };
 
-export type ConversationState = { turns: Turn[] };
+export type ConversationState = {
+  turns: Turn[];
+  /** Words a model is being asked about. They are on the page already, with nothing under them yet. */
+  pending: { words: string } | null;
+};
 
-const initialState: ConversationState = { turns: [] };
+const initialState: ConversationState = { turns: [], pending: null };
 
 const conversationSlice = createSlice({
   name: "conversation",
   initialState,
   reducers: {
     conversationLoaded(_state, action: PayloadAction<Turn[]>) {
-      return { turns: action.payload };
+      return { turns: action.payload, pending: null };
+    },
+    pendingSet(state, action: PayloadAction<{ words: string } | null>) {
+      state.pending = action.payload;
+    },
+    /** More of a reply has arrived from the model. */
+    replyGrew(state, action: PayloadAction<{ turnId: string; piece: string }>) {
+      const turn = state.turns.find((entry) => entry.id === action.payload.turnId);
+      if (!turn) return;
+      // Words said partway through a journey are answered under those words.
+      const mark = turn.marks.at(-1);
+      if (turn.run && mark) mark.reply = (mark.reply ?? "") + action.payload.piece;
+      else turn.reply = (turn.reply ?? "") + action.payload.piece;
+    },
+    /** The reply has finished arriving, or failed: `instead` then replaces whatever came. */
+    replyEnded(state, action: PayloadAction<{ turnId: string; instead?: string }>) {
+      const turn = state.turns.find((entry) => entry.id === action.payload.turnId);
+      if (!turn) return;
+      turn.streaming = false;
+      if (action.payload.instead === undefined) return;
+      const mark = turn.marks.at(-1);
+      if (turn.run && mark) {
+        mark.reply = action.payload.instead;
+        delete mark.by;
+      } else {
+        turn.reply = action.payload.instead;
+        turn.replyBy = null;
+      }
+    },
+    turnStreaming(state, action: PayloadAction<{ turnId: string }>) {
+      const turn = state.turns.find((entry) => entry.id === action.payload.turnId);
+      if (turn) turn.streaming = true;
     },
     turnAdded(state, action: PayloadAction<Turn>) {
       state.turns.push(action.payload);
