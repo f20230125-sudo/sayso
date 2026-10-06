@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { waitingStep } from "@/agent/run";
+import { NOT_UNDERSTOOD } from "@/agent/replies";
+import { itemsOf, waitingStep } from "@/agent/run";
 import { addDays } from "@/airline/dates";
 import { NOW, TODAY, apiFetch, freeSeat, memoryStorage, takenSeat, trip, type Seen } from "@/test/api";
 import { STATE_KEY, load, save } from "./persist";
@@ -62,9 +63,9 @@ describe("asking", () => {
     await store.dispatch(ask("hello"));
     expect(last()).toMatchObject({ run: null, reply: "Hello. Say what you need and I will bring up the right screen for it." });
     await store.dispatch(ask("sing me a song"));
-    expect(last()).toMatchObject({ run: null, reply: "I did not understand that. I can show your trips and change your seat." });
+    expect(last()).toMatchObject({ run: null, reply: NOT_UNDERSTOOD });
     await store.dispatch(ask("yes"));
-    expect(last().reply).toBe("I did not understand that. I can show your trips and change your seat.");
+    expect(last().reply).toBe(NOT_UNDERSTOOD);
     await store.dispatch(ask("   "));
     expect(turns()).toHaveLength(3);
   });
@@ -177,6 +178,8 @@ describe("words said partway through a journey", () => {
     await store.dispatch(ask("a window seat on my London flight"));
     await store.dispatch(ask("never mind"));
     expect(last()).toMatchObject({ run: { status: "stopped" }, closing: "Left unfinished. Nothing was changed.", marks: [{ words: "never mind" }] });
+    // The seat map that was left stays on the page, to show what was left.
+    expect(itemsOf(last().run!).at(-1)).toMatchObject({ kind: "widget", widget: "seat-map", state: "active" });
     expect(booking("K7QM2P").seat).toBe(london.seat);
   });
 

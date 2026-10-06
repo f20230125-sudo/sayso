@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { OrderResult } from "@/airline/schema";
-import { TODAY, account, apiFetch, freeSeat, takenSeat, trip, type Seen } from "@/test/api";
+import { NOW, TODAY, account, apiFetch, freeSeat, takenSeat, trip, type Seen } from "@/test/api";
 import { matchTrips, planFor } from "./plan";
 import { MissingReference, fill, lookup, referencedSteps } from "./reference";
 import { replan } from "./replan";
@@ -8,7 +8,8 @@ import { advance, answerEvent, itemsOf, reduceRun, startRun, waitingStep } from 
 import { ToolError, callTool } from "./tools";
 import type { Deps, Intent, Json, Plan, RunEvent, RunState, Step } from "./types";
 
-const plan = (intents: Intent[], focus: string | null = null) => planFor(intents, { today: TODAY, account: account(), focus });
+const context = { today: TODAY, now: NOW.toISOString(), account: account() };
+const plan = (intents: Intent[], focus: string | null = null) => planFor(intents, { ...context, focus });
 const ids = (steps: Step[]) => steps.map((step) => step.id);
 
 function deps(options: Parameters<typeof apiFetch>[0] = {}, signal: AbortSignal = new AbortController().signal): Deps {
@@ -107,8 +108,8 @@ describe("planning", () => {
 
   it("says so when there are no trips", () => {
     const empty = { ...account(), bookings: [] };
-    expect(planFor([{ journey: "trips" }], { today: TODAY, account: empty }).steps).toMatchObject([{ kind: "say", text: "You have no upcoming trips." }]);
-    expect(planFor([seatIntent], { today: TODAY, account: empty }).steps).toMatchObject([{ kind: "say", text: "You have no upcoming trips to change." }]);
+    expect(planFor([{ journey: "trips" }], { ...context, account: empty }).steps).toMatchObject([{ kind: "say", text: "You have no upcoming trips." }]);
+    expect(planFor([seatIntent], { ...context, account: empty }).steps).toMatchObject([{ kind: "say", text: "You have no upcoming trips to change." }]);
   });
 
   it("plans a seat change as far as one price, one confirmation and one receipt", () => {

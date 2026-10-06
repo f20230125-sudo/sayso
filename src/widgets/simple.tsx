@@ -60,7 +60,7 @@ function Amount({ amount }: { amount: number }) {
   );
 }
 
-function Lines({ lines, total, totalLabel }: { lines: Quote["lines"]; total: number; totalLabel: string }) {
+export function Lines({ lines, total, totalLabel }: { lines: Quote["lines"]; total: number; totalLabel: string }) {
   return (
     <dl className="text-[14px]">
       {lines.map((line) => (

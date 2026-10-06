@@ -1,5 +1,6 @@
 "use client";
 
+import { LazyMotion, MotionConfig, domAnimation } from "motion/react";
 import { useEffect, useState } from "react";
 import { Provider } from "react-redux";
 import { makeStore } from "@/store/store";
@@ -31,7 +32,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <Provider store={store}>
       <ThemeProvider>
-        <ToastProvider>{children}</ToastProvider>
+        {/* Animations are loaded once, and switched off for anyone whose device asks for less motion. */}
+        <LazyMotion features={domAnimation} strict>
+          <MotionConfig reducedMotion="user">
+            <ToastProvider>{children}</ToastProvider>
+          </MotionConfig>
+        </LazyMotion>
       </ThemeProvider>
     </Provider>
   );

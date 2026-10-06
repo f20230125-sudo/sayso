@@ -1,11 +1,13 @@
 import { upcoming } from "@/airline/account";
 import type { IsoDate } from "@/airline/dates";
 import type { Account } from "@/airline/schema";
+import { isCheckInOpen } from "@/airline/status";
 import type { Understanding } from "./types";
 
 // The plain lines the desk says when there is nothing to show.
 
-export const CAN_DO = "I can show your trips and change your seat.";
+export const CAN_DO =
+  "I can show your trips and a flight's status, move a flight, choose a seat, add bags, check you in, cancel a booking, or book a new flight.";
 
 export function chatReply(about: Extract<Understanding, { kind: "chat" }>["about"]): string {
   switch (about) {
@@ -14,7 +16,7 @@ export function chatReply(about: Extract<Understanding, { kind: "chat" }>["about
     case "thanks":
       return "You are welcome.";
     case "help":
-      return `${CAN_DO} Say it in your own words, such as "give me a window seat on my London flight".`;
+      return `${CAN_DO} Say it in your own words, and say several at once if you like.`;
   }
 }
 
@@ -26,12 +28,16 @@ export const LEFT_UNFINISHED = "Left unfinished. Nothing was changed.";
 export const STOPPED = "Stopped. Nothing was changed.";
 
 /** Things to try, written from the traveller's own trips so every one of them works. */
-export function suggestions(account: Account, today: IsoDate): string[] {
+export function suggestions(account: Account, today: IsoDate, now: Date): string[] {
   const trips = upcoming(account, today);
   // Not the very next flight: the one after it is far enough off to change freely.
   const later = trips[1] ?? trips[0];
-  const tries = ["Show my trips"];
-  if (later) tries.unshift(`Give me a window seat on my ${later.flight.toCity} flight`);
-  if (trips.length > 1) tries.push("I want more legroom");
+  const tries: string[] = [];
+  if (later) tries.push(`Move my ${later.flight.toCity} flight to next week, window seat, and add a bag`);
+  const open = trips.find((trip) => !trip.checkedIn && isCheckInOpen(trip.flight, now));
+  if (open) tries.push(`Check me in for ${open.flight.toCity}`);
+  if (trips.length > 0) tries.push("Is my flight on time?");
+  tries.push("Book a flight to Paris next Friday");
+  if (trips.length > 0) tries.push("Show my trips");
   return tries;
 }

@@ -125,6 +125,33 @@ export type OrderRequest = z.infer<typeof orderRequestSchema>;
 export const orderResultSchema = z.object({ booking: bookingSchema, receipt: receiptSchema });
 export type OrderResult = z.infer<typeof orderResultSchema>;
 
+export const flightStatusSchema = z.object({
+  flightId: z.string(),
+  phase: z.enum(["scheduled", "check-in", "closing", "boarding", "departed", "landed"]),
+  /** A few words to finish the sentence "JN 203 is ...". */
+  headline: z.string(),
+  delayMinutes: z.number().int().nonnegative(),
+  terminal: z.string(),
+  /** Null until the gate is announced, three hours before leaving. */
+  gate: z.string().nullable(),
+  /** How long the walk to the gate takes. Null until the gate is announced. */
+  walkMinutes: z.number().int().nullable(),
+  /** From check-in to landing, each at the local time of the airport it happens at. */
+  steps: z.array(
+    z.object({
+      key: z.string(),
+      label: z.string(),
+      date: isoDateSchema,
+      time: timeSchema,
+      /** "done" has happened, "next" is the one to come, "later" follows it. */
+      state: z.enum(["done", "next", "later"]),
+    }),
+  ),
+});
+export type FlightStatus = z.infer<typeof flightStatusSchema>;
+
+export const calendarDaySchema = z.object({ date: isoDateSchema, price: z.number().int(), flights: z.number().int() });
+
 export const paymentSchema = z.object({
   id: z.string(),
   date: isoDateSchema,

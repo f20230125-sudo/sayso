@@ -1,6 +1,7 @@
 import { GET as calendar } from "@/app/api/flights/calendar/route";
 import { GET as flights } from "@/app/api/flights/route";
 import { GET as seats } from "@/app/api/flights/[id]/seats/route";
+import { GET as status } from "@/app/api/flights/[id]/status/route";
 import { GET as health } from "@/app/api/health/route";
 import { POST as orders } from "@/app/api/orders/route";
 import { POST as quotes } from "@/app/api/quotes/route";
@@ -40,6 +41,8 @@ export function apiFetch({ seen, intercept }: Options = {}): typeof fetch {
 
     const seatsOf = /^\/api\/flights\/([^/]+)\/seats$/.exec(url.pathname);
     if (seatsOf) return seats(request, { params: Promise.resolve({ id: decodeURIComponent(seatsOf[1]) }) });
+    const statusOf = /^\/api\/flights\/([^/]+)\/status$/.exec(url.pathname);
+    if (statusOf) return status(request, { params: Promise.resolve({ id: decodeURIComponent(statusOf[1]) }) });
     if (url.pathname === "/api/flights/calendar") return calendar(request);
     if (url.pathname === "/api/flights") return flights(request);
     if (url.pathname === "/api/quotes") return quotes(request);

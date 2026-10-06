@@ -23,6 +23,8 @@ export type TripRef = {
   code?: string;
   /** The airport at the far end, such as "LHR". */
   place?: string;
+  /** The flight number, such as "JN 203". */
+  flight?: string;
   /** 0 for Sunday up to 6 for Saturday. */
   weekday?: number;
   date?: IsoDate;
@@ -36,13 +38,27 @@ export type DateWish = { from: IsoDate; to: IsoDate } | { shiftDays: number };
 /** One thing the traveller wants, with the details they gave. A sentence can hold several. */
 export type Intent =
   | { journey: "trips" }
-  | { journey: "seat"; trip?: TripRef; wish?: SeatKind; seat?: string };
+  | { journey: "status"; trip?: TripRef }
+  | { journey: "change-flight"; trip?: TripRef; when?: DateWish }
+  | { journey: "seat"; trip?: TripRef; wish?: SeatKind; seat?: string }
+  /** `add` is how many more checked bags, when the words said. */
+  | { journey: "bags"; trip?: TripRef; add?: number }
+  | { journey: "check-in"; trip?: TripRef }
+  | { journey: "cancel"; trip?: TripRef }
+  /** `from` and `to` are airport codes. */
+  | { journey: "book"; from?: string; to?: string; when?: DateWish };
 
 export type JourneyName = Intent["journey"];
 
 export const JOURNEY_NAMES: Record<JourneyName, string> = {
   trips: "See my trips",
+  status: "Flight status",
+  "change-flight": "Change a flight",
   seat: "Choose a seat",
+  bags: "Add bags",
+  "check-in": "Check in",
+  cancel: "Cancel and refund",
+  book: "Book a flight",
 };
 
 /** Which of the two understood the words. */
@@ -73,12 +89,12 @@ export type Context = {
 
 // --- Plan ---------------------------------------------------------------------
 
-export type ToolName = "seatMap" | "quote" | "order";
+export type ToolName = "calendar" | "searchFlights" | "seatMap" | "status" | "quote" | "order";
 
 export type Step =
   /** A short line of text. May hold references. */
   | { id: string; kind: "say"; text: string }
-  /** Something already known when the plan was made, such as which trip is meant. */
+  /** Something that needs no call and no question, such as which trip is meant. May hold references. */
   | { id: string; kind: "set"; value: Json; label: string }
   /** A call to the airline's API. */
   | { id: string; kind: "tool"; tool: ToolName; args: Json; label: string }
@@ -89,6 +105,12 @@ export type Step =
 export type Expectation =
   | { kind: "seat-kind"; wish: SeatKind; seatStep: string }
   | { kind: "seat-on-booking"; seatStep: string }
+  | { kind: "date-within"; from: IsoDate; to: IsoDate; flightStep: string }
+  | { kind: "flight-on-booking"; flightStep: string }
+  | { kind: "goes-to"; place: string; flightStep: string }
+  | { kind: "bags-on-booking"; bagsStep: string }
+  | { kind: "checked-in" }
+  | { kind: "cancelled" }
   | { kind: "charged-as-quoted" };
 
 export type Plan = { steps: Step[]; expectations: Expectation[] };
