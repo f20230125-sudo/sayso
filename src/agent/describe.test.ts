@@ -75,7 +75,7 @@ describe("the catalogue", () => {
   const all = catalog();
 
   it("lists every journey, component and call", () => {
-    expect(all.journeys.map((journey) => journey.name)).toEqual(["trips", "status", "change-flight", "seat", "bags", "check-in", "cancel", "book"]);
+    expect(all.journeys.map((journey) => journey.name)).toEqual(["trips", "status", "change-flight", "seat", "bags", "check-in", "cancel", "book", "insight"]);
     expect(all.widgets.map((widget) => widget.type)).toEqual(WIDGET_TYPES);
     expect(all.tools).toHaveLength(6);
   });

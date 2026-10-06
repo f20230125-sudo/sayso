@@ -37,6 +37,7 @@ export function describeIntent(intent: Intent): { journey: string; details: Deta
   if ("wish" in intent && intent.wish) details.push({ name: "seat wanted", value: intent.wish === "legroom" ? "extra legroom" : intent.wish });
   if ("seat" in intent && intent.seat) details.push({ name: "seat named", value: intent.seat });
   if ("add" in intent && intent.add) details.push({ name: "bags to add", value: String(intent.add) });
+  if ("views" in intent) details.push({ name: "views of the account", value: intent.views.join(", ") });
   return { journey: JOURNEY_NAMES[intent.journey], details };
 }
 

@@ -5,6 +5,7 @@ import { FEES, MAX_BAGS } from "@/airline/pricing";
 import type { Account, Booking } from "@/airline/schema";
 import { checkInOpens, isCheckInOpen, localAt } from "@/airline/status";
 import type { DateWish, Expectation, Intent, Json, Plan, Step, TripRef } from "./types";
+import { VIEW_TITLES, leadFor, viewBlock } from "./views";
 
 // The second of the four steps: turn what was understood into a plan.
 //
@@ -179,6 +180,30 @@ function planTrips(draft: Draft): void {
   }
   say(draft, "trips-lead", bookings.length === 1 ? "You have one trip coming up." : `You have ${bookings.length} trips coming up.`);
   draft.steps.push({ id: "trips", kind: "show", widget: "trips", props: { bookings } as Json, waits: false, label: "Show your trips" });
+}
+
+/**
+ * An answer about the traveller's own account. Whoever understood the
+ * question chose the views; the blocks are worked out from the account here
+ * and now, so the plan holds finished numbers and no call is needed.
+ */
+function planInsight(draft: Draft, intent: IntentOf<"insight">): void {
+  const { account, today } = draft.context;
+  const views = [...new Set(intent.views)].slice(0, 3);
+  const blocks = views.map((view) => viewBlock(view, account, today)).filter((block) => block !== null);
+  if (blocks.length === 0) {
+    say(draft, "insight-none", "There is nothing in your account to show for that yet.");
+    return;
+  }
+  say(draft, "insight-lead", leadFor(views[0], account, today));
+  draft.steps.push({
+    id: "insight",
+    kind: "show",
+    widget: "answer-card",
+    props: { title: VIEW_TITLES[views[0]], blocks } as Json,
+    waits: false,
+    label: "Show the answer, worked out from your account",
+  });
 }
 
 function planStatus(draft: Draft, intent: IntentOf<"status">): void {
@@ -505,7 +530,7 @@ function planOrder(draft: Draft): void {
 
 // Journeys are planned in this order whatever order they were said in: a new
 // flight is chosen before the seat on it, and checking in comes last.
-const ORDER: Record<Intent["journey"], number> = { trips: 0, status: 0, book: 1, "change-flight": 2, seat: 3, bags: 4, "check-in": 5, cancel: 6 };
+const ORDER: Record<Intent["journey"], number> = { trips: 0, insight: 0, status: 0, book: 1, "change-flight": 2, seat: 3, bags: 4, "check-in": 5, cancel: 6 };
 
 export function planFor(asked: readonly Intent[], context: PlanContext): Plan {
   const draft: Draft = { context, steps: [], expectations: [], changes: [], subject: null };
@@ -526,6 +551,9 @@ export function planFor(asked: readonly Intent[], context: PlanContext): Plan {
     switch (intent.journey) {
       case "trips":
         planTrips(draft);
+        break;
+      case "insight":
+        planInsight(draft, intent);
         break;
       case "status":
         planStatus(draft, intent);

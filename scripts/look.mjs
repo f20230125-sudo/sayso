@@ -120,6 +120,18 @@ await journey("bags", async ({ page, say, snap }) => {
   await snap("stepper");
 });
 
+await journey("spend", async ({ page, say, snap }) => {
+  await say("How much have I spent this year?");
+  await page.getByRole("list", { name: "Spending by month" }).waitFor();
+  await page.getByRole("list", { name: "Spending by month" }).getByRole("listitem").nth(7).hover();
+  await snap("spending");
+  await say("show my spending by route");
+  await page.getByRole("list", { name: "Spending by route" }).waitFor();
+  await say("show my recent payments");
+  await page.getByRole("table", { name: "Your latest payments" }).waitFor();
+  await snap("route-and-payments");
+});
+
 await journey("panel", async ({ page, say, snap }) => {
   await say("Move my London flight to next week, window seat, and add a bag");
   await page.getByRole("region", { name: "Days to choose from" }).getByRole("button").nth(2).click();

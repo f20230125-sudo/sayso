@@ -3,7 +3,8 @@ import { upcoming } from "@/airline/account";
 import { WEEKDAYS, addDays, mondayOf, shortDay, weekdayOf } from "@/airline/dates";
 import { DESTINATIONS, DUBAI, airport } from "@/airline/places";
 import { isoDateSchema, seatKindSchema, type Booking, type Flight } from "@/airline/schema";
-import type { Context, Intent, Json, TripRef, Understanding } from "../types";
+import { VIEW_NAMES, type Context, type Intent, type Json, type TripRef, type Understanding } from "../types";
+import { VIEW_NOTES } from "../views";
 
 // The first of the four steps, done by a language model.
 //
@@ -33,6 +34,7 @@ const intentSchema = z.discriminatedUnion("journey", [
   z.object({ journey: z.literal("check-in"), trip: bookingCode.optional() }),
   z.object({ journey: z.literal("cancel"), trip: bookingCode.optional() }),
   z.object({ journey: z.literal("book"), from: airportCode.optional(), to: airportCode.optional(), when: when.optional() }),
+  z.object({ journey: z.literal("insight"), views: z.array(z.enum(VIEW_NAMES)).min(1).max(3) }),
 ]);
 
 const intents = z.array(intentSchema).min(1).max(5);
@@ -115,6 +117,8 @@ export function systemPrompt(context: Context): string {
     '{"journey":"check-in","trip":"CODE"}  check in, or see the boarding pass',
     '{"journey":"cancel","trip":"CODE"}  cancel a booking for a refund',
     '{"journey":"book","to":"LHR","when":WHEN}  book a new flight. Use "from" only when it does not leave from Dubai',
+    '{"journey":"insight","views":["spending"]}  answer a question about their own account: what they have spent, their payments, their trips compared',
+    `views is one to three of: ${VIEW_NAMES.map((view) => `${view} (${VIEW_NOTES[view]})`).join("; ")}`,
     'WHEN is {"from":"YYYY-MM-DD","to":"YYYY-MM-DD"}, with the same day twice for one day, or {"shiftDays":2} for "two days later" and {"shiftDays":-1} for "a day earlier".',
     'Leave out every field the traveller did not say. Leave out "trip" unless they said which trip, and then use its code from the list above. Never make up a code.',
     "",
@@ -223,7 +227,7 @@ export function readReply(text: string, context: Context): Checked {
         if (place !== undefined && !airport(place)) return { ok: false, problem: `The airline does not fly to "${place}". Use an airport from the list.` };
       }
       checked.push(intent);
-    } else if (intent.journey === "trips") {
+    } else if (intent.journey === "trips" || intent.journey === "insight") {
       checked.push(intent);
     } else {
       const { trip, ...rest } = intent;

@@ -32,7 +32,7 @@ for (const theme of ["light", "dark"] as const) {
       // The longest page in the app, with every schema opened: the scan takes a while.
       test.slow();
       await page.goto("/gallery");
-      await expect(page.getByRole("heading", { level: 1 })).toContainText("13 pieces");
+      await expect(page.getByRole("heading", { level: 1 })).toContainText("14 pieces");
       await expect(page.getByRole("grid")).toBeVisible();
       for (const summary of await page.getByText("Schema", { exact: true }).all()) await summary.click();
       expect(await violations(page)).toEqual([]);
@@ -81,6 +81,12 @@ for (const theme of ["light", "dark"] as const) {
 
       await say(page, "book a flight");
       await expect(page.getByRole("form", { name: "Flight search" })).toBeVisible();
+      expect(await violations(page)).toEqual([]);
+
+      await say(page, "how much have I spent this year?");
+      await expect(page.getByRole("list", { name: "Spending by month" })).toBeVisible();
+      await say(page, "show my recent payments");
+      await expect(page.getByRole("table", { name: "Your latest payments" })).toBeVisible();
       expect(await violations(page)).toEqual([]);
     });
 
@@ -177,7 +183,7 @@ test.describe("how it worked", () => {
 test.describe("the gallery and the catalogue", () => {
   test("shows every component, and each can be tried", async ({ page }) => {
     await page.goto("/gallery");
-    await expect(page.getByRole("navigation", { name: "Components" }).getByRole("link")).toHaveCount(13);
+    await expect(page.getByRole("navigation", { name: "Components" }).getByRole("link")).toHaveCount(14);
     await page.getByRole("region", { name: "Seat map" }).getByRole("button", { name: /window, free/ }).first().click();
     await page.getByRole("region", { name: "Seat map" }).getByRole("button", { name: /^Choose \d/ }).click();
     await expect(page.getByText("In a conversation, that answer would carry the journey on.")).toBeVisible();
@@ -189,8 +195,8 @@ test.describe("the gallery and the catalogue", () => {
     const response = await request.get("/api/catalog");
     expect(response.ok()).toBe(true);
     const body = (await response.json()) as { journeys: unknown[]; widgets: { type: string; props: { type: string } }[]; tools: { name: string }[] };
-    expect(body.journeys).toHaveLength(8);
-    expect(body.widgets).toHaveLength(13);
+    expect(body.journeys).toHaveLength(9);
+    expect(body.widgets).toHaveLength(14);
     expect(body.widgets.every((widget) => widget.props.type === "object")).toBe(true);
     expect(body.tools.map((tool) => tool.name).sort()).toEqual(["calendar", "order", "quote", "searchFlights", "seatMap", "status"]);
   });

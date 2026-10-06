@@ -7,6 +7,7 @@ import type { Change, Quote } from "@/airline/schema";
 import { seatMapOf } from "@/airline/seats";
 import { statusOf } from "@/airline/status";
 import type { Json } from "@/agent/reference";
+import { VIEW_TITLES, viewBlock } from "@/agent/views";
 import { WIDGETS, type WidgetAnswer, type WidgetProps, type WidgetType } from "./specs";
 
 // One worked example of every component, for the gallery page and for the
@@ -66,6 +67,13 @@ export function examples(today: IsoDate, now: Date): Example[] {
     receipt: { props: placed.result, answer: null },
     "boarding-pass": { props: { booking: { ...mumbai, checkedIn: true }, status }, answer: null },
     "status-timeline": { props: { flight: mumbai.flight, status }, answer: null },
+    "answer-card": {
+      props: {
+        title: VIEW_TITLES.spending,
+        blocks: (["spending", "spending-by-month", "spending-by-route"] as const).map((view) => viewBlock(view, account, today)).filter((block) => block !== null),
+      },
+      answer: null,
+    },
   };
 
   return (Object.keys(WIDGETS) as WidgetType[]).map((type) => ({ type, props: all[type].props as unknown as Json, answer: all[type].answer as Json | null }));

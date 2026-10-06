@@ -46,7 +46,13 @@ export type Intent =
   | { journey: "check-in"; trip?: TripRef }
   | { journey: "cancel"; trip?: TripRef }
   /** `from` and `to` are airport codes. */
-  | { journey: "book"; from?: string; to?: string; when?: DateWish };
+  | { journey: "book"; from?: string; to?: string; when?: DateWish }
+  /** A question about the traveller's own account, answered from ready-made views of it. */
+  | { journey: "insight"; views: ViewName[] };
+
+/** The views of the account an answer can be built from. Each is worked out by code (see views.ts). */
+export const VIEW_NAMES = ["spending", "spending-by-month", "spending-by-route", "payments", "upcoming"] as const;
+export type ViewName = (typeof VIEW_NAMES)[number];
 
 export type JourneyName = Intent["journey"];
 
@@ -59,6 +65,7 @@ export const JOURNEY_NAMES: Record<JourneyName, string> = {
   "check-in": "Check in",
   cancel: "Cancel and refund",
   book: "Book a flight",
+  insight: "Answer from my account",
 };
 
 /** Which of the two understood the words. */

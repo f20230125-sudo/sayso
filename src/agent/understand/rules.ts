@@ -4,7 +4,7 @@ import type { Booking, Flight, SeatKind, SeatMap } from "@/airline/schema";
 import { findSeat } from "@/airline/seats";
 import { matchTrips } from "../plan";
 import { FACTS, type FactName } from "../talk";
-import type { Context, DateWish, Intent, Json, TripRef, Understanding } from "../types";
+import type { Context, DateWish, Intent, Json, TripRef, Understanding, ViewName } from "../types";
 import { findDates, numberFrom, type FoundDate } from "./dates";
 
 // The first of the four steps, done with rules and no model.
@@ -193,11 +193,19 @@ export function mergeIntents(base: readonly Intent[], incoming: readonly Intent[
   return merged;
 }
 
+/** Journeys that are about one of the traveller's trips. */
+const NAMES_A_TRIP: ReadonlySet<Journey> = new Set<Journey>(["status", "change-flight", "seat", "bags", "check-in", "cancel"]);
+
+/** Whether an intent is about a trip and does not yet say which. */
+function needsTrip(intent: Intent): boolean {
+  return NAMES_A_TRIP.has(intent.journey) && !("trip" in intent && intent.trip);
+}
+
 /** A trip named in one part of a sentence is the trip for the parts that name none. */
 function shareTrip(intents: Intent[]): Intent[] {
   const named = intents.map((intent) => ("trip" in intent ? intent.trip : undefined)).find((trip) => trip !== undefined);
   if (!named) return intents;
-  return intents.map((intent) => (intent.journey !== "trips" && intent.journey !== "book" && !intent.trip ? { ...intent, trip: named } : intent));
+  return intents.map((intent) => (needsTrip(intent) ? ({ ...intent, trip: named } as Intent) : intent));
 }
 
 /** Read every clause, in order. A clause that only names a trip names it for the request before it. */
@@ -209,7 +217,7 @@ function intentsOf(text: string, context: Context): Intent[] {
       all = mergeIntents(all, intents);
     } else if (trip && all.length > 0) {
       const last = all[all.length - 1];
-      if (last.journey !== "trips" && last.journey !== "book" && !last.trip) all[all.length - 1] = { ...last, trip };
+      if (needsTrip(last)) all[all.length - 1] = { ...last, trip } as Intent;
     }
   }
   return shareTrip(all);
@@ -339,6 +347,17 @@ function factFor(text: string): FactName | null {
   return null;
 }
 
+/** The views of the account that answer a question about spending, when the words ask one. */
+function viewsFor(text: string): ViewName[] | null {
+  if (/\b(by|per|each|which) (route|destination|city|place)\b|\bwhere (do|did|does) (i|my money) (fly|spend|go)\b/.test(text)) return ["spending-by-route"];
+  if (/\b(by|per|each) month\b|\bmonth by month\b|\bmonthly\b/.test(text) && /\b(spen[dt]|spending|paid|pay|cost)\b/.test(text)) return ["spending-by-month"];
+  if (/\b(how much|what) (have|did|do) i (spen[dt]|paid|pay)\b|\bmy spending\b|\btotal (spen[dt]|spending|cost)\b|\bspent (so far|this year|on flights)\b/.test(text)) {
+    return ["spending", "spending-by-month"];
+  }
+  if (/\b(payments|receipts|transactions|charges)\b/.test(text) && /\b(my|show|see|list|what|recent|latest|last|all)\b/.test(text)) return ["payments"];
+  return null;
+}
+
 export function understandByRules(words: string, context: Context): Understanding {
   const text = normalise(words);
   if (text === "") return { kind: "unknown" };
@@ -347,6 +366,10 @@ export function understandByRules(words: string, context: Context): Understandin
     const answer = answerTo(context.active, text, context);
     if (answer) return answer;
   }
+
+  // A question about the traveller's own account is answered from views of it.
+  const views = viewsFor(text);
+  if (views) return { kind: "request", intents: [{ journey: "insight", views }] };
 
   if (ASKS_ABOUT.test(text)) {
     // A question the rules have no fact for is left for a model, if there is one.
