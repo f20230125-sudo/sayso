@@ -6,7 +6,7 @@ Sayso is a service desk for a made-up airline. You type what you want in your ow
 
 **Live: https://sayso-sigma.vercel.app**
 
-![The desk partway through a request, with the "How it worked" panel open beside it](docs/screenshots/desk.png)
+![One sentence with three requests becomes a day picker, a flight list, a seat map and one price](docs/demo.gif)
 
 ## Try it in a minute
 
@@ -46,12 +46,55 @@ Replies are built from fourteen components, all on the [gallery page](https://sa
 
 ## How it works
 
+![The desk partway through a request, with the "How it worked" panel open beside it](docs/screenshots/desk.png)
+
 Every request goes through four steps. All four are plain TypeScript in `src/agent`, with no React and no Redux in them, so they are tested without a browser.
 
 1. **Understand.** The words become intents: which journey, which trip, what details. Rules do this first, with no model and no key. What they cannot read goes to a model, if you have given one.
 2. **Plan.** The intents become a list of steps: say a line, call the airline's API, show a component. A plan is plain data. Where a step needs something only known later, it holds a reference to the step that will produce it: `{{seat.seat}}`, `{{quote.total}}`.
 3. **Run.** The steps run one by one, each reported as an event. When a component needs an answer, the run stops and waits. It picks up again when the answer is in.
 4. **Check.** The plan carries its own expectations, written before anything ran. Each is compared with the result and shown: "You asked for a window seat. 4A is one."
+
+```mermaid
+flowchart LR
+  words(["What you say"]) --> understand
+  subgraph agent["src/agent: plain TypeScript, no React"]
+    direction LR
+    understand["1 Understand<br/>rules first, then a model"] --> plan["2 Plan<br/>steps, as data"]
+    plan --> run["3 Run<br/>pauses for answers"]
+    run --> check["4 Check<br/>result against request"]
+  end
+  run <-->|"REST calls, checked<br/>before and after"| api[("Airline API<br/>no database")]
+  run -->|events| store["Redux store<br/>saved in the browser"]
+  store --> page["Components<br/>from a fixed, typed list"]
+  page -->|"your answer"| run
+```
+
+A run, for "give me a window seat on my London flight":
+
+```mermaid
+sequenceDiagram
+  participant You
+  participant Page as Page and store
+  participant Agent
+  participant API as Airline API
+  You->>Page: "give me a window seat on my London flight"
+  Page->>Agent: understand, then plan
+  Agent-->>Page: 10 steps, 3 expectations
+  Agent->>API: GET /api/flights/JN203_2026-10-08/seats
+  API-->>Agent: the cabin
+  Agent-->>Page: show the seat map, then wait
+  Note over Page: the run is now data: "waiting at step 4"
+  You->>Page: picks 4F
+  Page->>Agent: carry on from step 5
+  Agent->>API: POST /api/quotes
+  API-->>Agent: AED 35
+  Agent-->>Page: show the price, then wait
+  You->>Page: pays
+  Agent->>API: POST /api/orders, expecting AED 35
+  API-->>Agent: the booking as it now stands, and a receipt
+  Agent-->>Page: receipt, and the checks
+```
 
 ### The decisions behind it
 
@@ -104,6 +147,22 @@ npm run dev        # http://localhost:3030
 
 Needs Node 24. Nothing else: no database, no environment variables, no key.
 
+With Docker:
+
+```bash
+docker compose up --build      # http://localhost:3000
+```
+
+On Kubernetes, two copies behind one Service. The app keeps nothing on the server, so any number of copies can run side by side:
+
+```bash
+docker build -t sayso:local .
+kubectl apply -f deploy/k8s.yaml
+kubectl port-forward service/sayso 3000:80
+```
+
+Docker and kubectl are not installed on the machine this was written on. Both are proven in CI instead: every push builds the image, starts it, calls its routes, then applies the manifest to a real one-node cluster and waits for both copies to pass their health checks.
+
 ## Tests
 
 ```bash
@@ -119,6 +178,8 @@ npm run build && CI=1 npm run e2e     # end-to-end tests, Playwright, against th
 
 All of it runs in CI on every push.
 
+`npm run screenshots` and `npm run gif` retake this README's pictures from the running app, with the clock fixed so they come out the same each time.
+
 ## Layout
 
 ```
@@ -130,6 +191,8 @@ src/ai/             the visitor's model settings, and one caller for every provi
 src/store/          Redux Toolkit: conversation, account, settings, saving to the browser
 src/components/     the desk page, the ask bar, a turn, the "How it worked" panel
 tests/e2e/          Playwright
+deploy/             the Kubernetes manifest
+scripts/            the README's screenshots and demo GIF
 ```
 
 ## Limits

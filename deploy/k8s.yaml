@@ -1,0 +1,82 @@
+# Sayso on Kubernetes: two copies of the app behind one Service.
+#
+#   docker build -t sayso:local .
+#   kubectl apply -f deploy/k8s.yaml
+#   kubectl port-forward service/sayso 3000:80
+#
+# The app keeps nothing on the server: bookings and conversations live in each
+# visitor's browser. So any number of copies can run side by side with no
+# shared storage.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sayso
+  labels:
+    app: sayso
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: sayso
+  template:
+    metadata:
+      labels:
+        app: sayso
+    spec:
+      securityContext:
+        # The cluster checks this against the image, which runs as user 10001.
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: sayso
+          image: sayso:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            - name: PORT
+              value: "3000"
+            - name: HOSTNAME
+              value: "0.0.0.0"
+          # Ready: may receive traffic. Live: restart it if this stops answering.
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 384Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sayso
+  labels:
+    app: sayso
+spec:
+  type: ClusterIP
+  selector:
+    app: sayso
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

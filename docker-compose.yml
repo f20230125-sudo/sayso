@@ -1,0 +1,16 @@
+# Run Sayso on your own machine:
+#
+#   docker compose up --build
+#
+# then open http://localhost:3000
+
+services:
+  sayso:
+    build: .
+    image: sayso:local
+    ports:
+      - "3000:3000"
+    environment:
+      # Nothing to set: the app has no database, no secrets and no key of its own.
+      NODE_ENV: production
+    restart: unless-stopped
