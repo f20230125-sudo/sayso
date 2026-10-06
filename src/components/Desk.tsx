@@ -1,6 +1,7 @@
 "use client";
 
-import { RotateCcw, Sparkles } from "lucide-react";
+import { LayoutGrid, ListTree, RotateCcw, Sparkles } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useRef } from "react";
 import { suggestions } from "@/agent/replies";
 import { waitingStep } from "@/agent/run";
@@ -11,9 +12,11 @@ import type { Account } from "@/airline/schema";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { settingsActions } from "@/store/settingsSlice";
 import { ask, isBusy, startOver, stop } from "@/store/thunks";
+import { uiActions } from "@/store/uiSlice";
 import { TripCard } from "@/widgets/TripCard";
-import type { WidgetType } from "@/widgets/specs";
+import { WIDGETS, type WidgetType } from "@/widgets/specs";
 import { AskBar } from "./AskBar";
+import { HowItWorked } from "./HowItWorked";
 import { SettingsDialog } from "./SettingsDialog";
 import { ThemeToggle } from "./ThemeToggle";
 import { useToast } from "./toast";
@@ -101,10 +104,27 @@ export function Desk() {
   const pending = useAppSelector((state) => state.conversation.pending);
   const model = useAppSelector((state) => (state.settings.ai.provider === "none" ? null : state.settings.ai.model));
   const busy = useAppSelector(isBusy);
+  const panelOpen = useAppSelector((state) => state.ui.panelOpen);
+  const panelTurn = useAppSelector((state) => state.ui.panelTurn);
   const today = useMemo(() => localDay(new Date()), []);
 
   const last = turns.at(-1);
   const waiting = waitingStep(last?.run ?? null);
+  const shownInPanel = turns.find((turn) => turn.id === panelTurn) ?? last ?? null;
+
+  // One short line for screen readers each time the page changes, so a new
+  // component is announced without reading all of it out.
+  const announcement = pending
+    ? "Working out what that means."
+    : waiting
+      ? `${WIDGETS[waiting.widget].title} is on screen, waiting for your answer.`
+      : last?.run?.status === "running"
+        ? "Working."
+        : last?.run?.status === "done"
+          ? "Done."
+          : last?.run?.status === "failed"
+            ? "That did not work. You can try again."
+            : "";
 
   // Keep the newest thing in view as the conversation grows.
   const end = useRef<HTMLDivElement>(null);
@@ -138,6 +158,22 @@ export function Desk() {
               {account.traveller.name}
             </span>
           ) : null}
+          <IconButton
+            label={panelOpen ? "Close how it worked" : "How it worked"}
+            aria-pressed={panelOpen}
+            className={panelOpen ? "bg-surface-2 text-fg" : ""}
+            onClick={() => dispatch(panelOpen ? uiActions.panelClosed() : uiActions.panelOpened(null))}
+          >
+            <ListTree size={16} />
+          </IconButton>
+          <Link
+            href="/gallery"
+            aria-label="Component gallery"
+            title="Component gallery"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface-2 hover:text-fg"
+          >
+            <LayoutGrid size={16} />
+          </Link>
           <IconButton label={model ? `Language model: ${model}` : "Language model: none, built-in rules only"} onClick={() => dispatch(settingsActions.settingsOpened())}>
             <span className="relative">
               <Sparkles size={16} />
@@ -157,35 +193,49 @@ export function Desk() {
         </div>
       </header>
 
-      <main className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-[680px] flex-col gap-12 px-5 pb-10 pt-8">
-          {!account ? null : turns.length === 0 && !pending ? (
-            <Welcome account={account} today={today} onAsk={onAsk} />
-          ) : (
-            turns.map((turn) => <TurnView key={turn.id} turn={turn} />)
-          )}
-          {pending ? (
-            <section className="flex flex-col gap-4" aria-label={`You said: ${pending.words}`}>
-              <Said words={pending.words} />
-              <Working label={`Asking ${model ?? "the model"} what that means`} />
-            </section>
-          ) : null}
-          <div ref={end} aria-hidden="true" />
-        </div>
-      </main>
+      <div className="flex min-h-0 flex-1">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <main className="min-h-0 flex-1 overflow-y-auto">
+            <div className="mx-auto flex w-full max-w-[680px] flex-col gap-12 px-5 pb-10 pt-8">
+              {!account ? null : turns.length === 0 && !pending ? (
+                <Welcome account={account} today={today} onAsk={onAsk} />
+              ) : (
+                turns.map((turn) => <TurnView key={turn.id} turn={turn} />)
+              )}
+              {pending ? (
+                <section className="flex flex-col gap-4" aria-label={`You said: ${pending.words}`}>
+                  <Said words={pending.words} />
+                  <Working label={`Asking ${model ?? "the model"} what that means`} />
+                </section>
+              ) : null}
+              <div ref={end} aria-hidden="true" />
+            </div>
+          </main>
 
-      <div className="shrink-0 bg-bg px-5 pb-5 pt-2">
-        <div className="mx-auto w-full max-w-[680px]">
-          <AskBar
-            busy={busy}
-            hint={waiting ? (WAITING_HINTS[waiting.widget] ?? "Choose above, or say what you need") : "Say what you need"}
-            onAsk={onAsk}
-            onStop={() => dispatch(stop())}
-          />
-          <p className="mt-2 text-center text-[11px] text-faint">A demo. {AIRLINE.name} is made up and nothing here is really booked or charged.</p>
+          <div className="shrink-0 bg-bg px-5 pb-5 pt-2">
+            <div className="mx-auto w-full max-w-[680px]">
+              <AskBar
+                busy={busy}
+                hint={waiting ? (WAITING_HINTS[waiting.widget] ?? "Choose above, or say what you need") : "Say what you need"}
+                onAsk={onAsk}
+                onStop={() => dispatch(stop())}
+              />
+              <p className="mt-2 text-center text-[11px] text-faint">A demo. {AIRLINE.name} is made up and nothing here is really booked or charged.</p>
+            </div>
+          </div>
         </div>
+
+        {/* Beside the conversation on a wide screen, over it on a narrow one. */}
+        {panelOpen ? (
+          <div className="fixed inset-0 z-40 lg:static lg:z-auto lg:w-[400px] lg:shrink-0 lg:border-l lg:border-line">
+            <HowItWorked turn={shownInPanel} onClose={() => dispatch(uiActions.panelClosed())} />
+          </div>
+        ) : null}
       </div>
 
+      <p className="sr-only" role="status" aria-live="polite">
+        {announcement}
+      </p>
       <SettingsDialog />
     </div>
   );

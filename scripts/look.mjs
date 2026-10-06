@@ -120,5 +120,21 @@ await journey("bags", async ({ page, say, snap }) => {
   await snap("stepper");
 });
 
+await journey("panel", async ({ page, say, snap }) => {
+  await say("Move my London flight to next week, window seat, and add a bag");
+  await page.getByRole("region", { name: "Days to choose from" }).getByRole("button").nth(2).click();
+  await page.getByRole("list", { name: "Flights to choose from" }).getByRole("button").first().click();
+  await page.getByRole("grid").waitFor();
+  await page.getByRole("button", { name: "How it worked", exact: true }).click();
+  await page.getByRole("complementary", { name: "How it worked" }).waitFor();
+  await snap("waiting");
+  await page.getByRole("button", { name: /window, free/ }).first().click();
+  await page.getByRole("button", { name: /^Choose \d/ }).click();
+  await page.getByRole("button", { name: /^Pay / }).click();
+  await page.getByRole("region", { name: "Receipt" }).waitFor();
+  await page.getByRole("button", { name: "Open came back" }).first().click();
+  await snap("done");
+});
+
 await browser.close();
 console.log(problems.length === 0 ? "no problems" : `problems:\n${problems.join("\n")}`);

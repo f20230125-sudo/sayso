@@ -102,7 +102,8 @@ export function BoardingPass({ props }: ViewProps<"boarding-pass">) {
   const facts = [
     ["Date", shortDay(flight.date)],
     ["Boards", boards?.time ?? "-"],
-    ["Gate", status.gate ?? "3h before"],
+    // Gates are announced three hours before. Until then a pass says "to be announced".
+    ["Gate", status.gate ?? "TBA"],
     ["Seat", booking.seat ?? "-"],
     ["Zone", row <= 8 ? "A" : row <= 16 ? "B" : "C"],
   ];
@@ -119,11 +120,11 @@ export function BoardingPass({ props }: ViewProps<"boarding-pass">) {
       <div className="px-5 pb-5 pt-3">
         <div className="mb-4 text-[17px] font-semibold tracking-tight">{booking.passenger}</div>
         <FlightLine flight={flight} />
-        <dl className="mt-5 grid grid-cols-5 gap-3">
+        <dl className="mt-5 grid grid-cols-3 gap-x-3 gap-y-4 sm:grid-cols-5">
           {facts.map(([label, value]) => (
             <div key={label}>
               <dt className="eyebrow">{label}</dt>
-              <dd className="tabular mt-1 text-[15px] font-semibold">{value}</dd>
+              <dd className="tabular mt-1 whitespace-nowrap text-[15px] font-semibold">{value}</dd>
             </div>
           ))}
         </dl>

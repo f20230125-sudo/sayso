@@ -6,6 +6,7 @@ import { itemsOf, type Item } from "@/agent/run";
 import type { Mark, Turn } from "@/store/conversationSlice";
 import { useAppDispatch } from "@/store/hooks";
 import { answer, drive } from "@/store/thunks";
+import { uiActions } from "@/store/uiSlice";
 import { WidgetHost } from "@/widgets/registry";
 import { Button } from "./ui";
 
@@ -78,7 +79,8 @@ function MarkView({ mark, arriving }: { mark: Mark; arriving: boolean }) {
 
 /** Which of the two read the words, and how long it took. */
 function understoodBy(turn: Turn): string {
-  const time = turn.understoodMs >= 1000 ? `${(turn.understoodMs / 1000).toFixed(1)} s` : `${turn.understoodMs} ms`;
+  // The rules often answer in less than a millisecond, and "0 ms" reads as a mistake.
+  const time = turn.understoodMs >= 1000 ? `${(turn.understoodMs / 1000).toFixed(1)} s` : turn.understoodMs < 1 ? "under 1 ms" : `${turn.understoodMs} ms`;
   return turn.brain === "model" && turn.model ? `Understood by ${turn.model} in ${time}` : `Understood by the built-in rules in ${time}`;
 }
 
@@ -152,7 +154,14 @@ export function TurnView({ turn }: { turn: Turn }) {
 
       {turn.closing ? <p className="text-[14px] text-faint">{turn.closing}</p> : null}
 
-      <p className="eyebrow">{understoodBy(turn)}</p>
+      <button
+        type="button"
+        onClick={() => dispatch(uiActions.panelOpened(turn.id))}
+        className="eyebrow -mx-1.5 flex w-fit flex-wrap items-center gap-x-3 gap-y-0.5 rounded px-1.5 py-1 text-left transition-colors hover:bg-surface-2 hover:text-fg"
+      >
+        <span>{understoodBy(turn)}</span>
+        <span className="whitespace-nowrap text-accent">How it worked</span>
+      </button>
     </section>
   );
 }

@@ -1,3 +1,4 @@
+import { GET as catalogue } from "@/app/api/catalog/route";
 import { GET as calendar } from "@/app/api/flights/calendar/route";
 import { GET as flights } from "@/app/api/flights/route";
 import { GET as seats } from "@/app/api/flights/[id]/seats/route";
@@ -54,6 +55,7 @@ export function apiFetch({ seen, intercept }: Options = {}): typeof fetch {
     if (url.pathname === "/api/quotes") return quotes(request);
     if (url.pathname === "/api/orders") return orders(request);
     if (url.pathname === "/api/health") return health();
+    if (url.pathname === "/api/catalog") return catalogue();
     return Response.json({ error: { code: "not_found", message: "No such route." } }, { status: 404 });
   };
 }

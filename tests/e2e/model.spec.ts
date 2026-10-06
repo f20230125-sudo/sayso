@@ -58,7 +58,7 @@ test.describe("with a model", () => {
     await openDesk(page);
     await say(page, "Show my trips");
     await expect(page.getByText("You have 3 trips coming up.")).toBeVisible();
-    await expect(page.getByText(/^Understood by the built-in rules in \d/)).toBeVisible();
+    await expect(page.getByText(/^Understood by the built-in rules in (under 1|\d+) ms/)).toBeVisible();
     expect(asked).toHaveLength(0);
   });
 
