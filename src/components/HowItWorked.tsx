@@ -72,7 +72,7 @@ export function HowItWorked({ turn, onClose }: { turn: Turn | null; onClose: () 
 
   /** Hands the run to Hindsight, an observer for agents. Called from the click, so the new tab is not blocked. */
   const openInHindsight = (shown: Turn) => {
-    void sendToHindsight(exportTurn(shown), `hindsight-sayso-${shown.id}.json`).then((result) => {
+    void sendToHindsight(exportTurn(shown, new Date().toISOString()), `hindsight-sayso-${shown.id}.json`).then((result) => {
       const { message, tone } = describeSend(result);
       showToast(message, { tone });
     });
