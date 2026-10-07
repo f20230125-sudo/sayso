@@ -31,7 +31,7 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, SAVE_DELAY_MS 
 describe("starting", () => {
   it("starts a fresh demo when the browser remembers nothing", () => {
     const { store, turns } = setup();
-    expect(store.getState().account.account).toMatchObject({ seededOn: TODAY, traveller: { name: "Noor Haddad" } });
+    expect(store.getState().account.account).toMatchObject({ seededOn: TODAY, traveller: { name: "Uzair Khan" } });
     expect(turns()).toEqual([]);
   });
 
@@ -39,6 +39,17 @@ describe("starting", () => {
     expect(load(memoryStorage({ [STATE_KEY]: "{not json" }), TODAY).turns).toEqual([]);
     expect(load(memoryStorage({ [STATE_KEY]: JSON.stringify({ version: 0, account: {}, turns: [] }) }), TODAY).account.seededOn).toBe(TODAY);
     expect(load(null, TODAY).account.bookings).toHaveLength(3);
+  });
+
+  it("starts fresh when what was saved belongs to a traveller with another name", () => {
+    const storage = memoryStorage();
+    const kept = load(storage, TODAY);
+    kept.account.traveller.name = "Someone Else";
+    kept.account.bookings[0].bags = 4;
+    save(storage, kept);
+    const again = load(storage, TODAY);
+    expect(again.account.traveller.name).toBe("Uzair Khan");
+    expect(again.account.bookings[0].bags).not.toBe(4);
   });
 
   it("starts fresh on a later day, when yesterday's trips have gone", () => {

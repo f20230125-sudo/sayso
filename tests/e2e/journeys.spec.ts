@@ -166,7 +166,7 @@ test.describe("journeys", () => {
     await form.getByRole("button", { name: "Check in" }).click();
 
     const pass = page.getByRole("region", { name: "Boarding pass" });
-    await expect(pass).toContainText("Noor Haddad");
+    await expect(pass).toContainText("Uzair Khan");
     await expect(pass).toContainText("9C");
     await expect(checks(page)).toContainText("You are checked in for JN 303.");
     // There was nothing to pay, so no price was asked for.
@@ -290,7 +290,7 @@ test.describe("staying where you were", () => {
     await expect(receipt(page)).toBeVisible();
 
     await page.getByRole("button", { name: "Start over with fresh demo trips" }).click();
-    await expect(page.getByRole("heading", { name: "Hello, Noor." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Hello, Uzair." })).toBeVisible();
     await say(page, "show my trips");
     await expect(page.getByText("You have 3 trips coming up.")).toBeVisible();
   });

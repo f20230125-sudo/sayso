@@ -72,6 +72,8 @@ export function load(storage: KeyValueStore | null, today: IsoDate): Saved {
     return fresh;
   }
   if (parsed.account.seededOn !== today) return fresh;
+  // A demo saved under another traveller's name (the name was changed) starts again, so it never shows two.
+  if (parsed.account.traveller.name !== fresh.account.traveller.name) return fresh;
 
   // A run that was in the middle of a call when the page closed is not
   // running any more. Mark it as interrupted so it can be tried again.

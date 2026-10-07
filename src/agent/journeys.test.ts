@@ -169,7 +169,7 @@ describe("planning the other journeys", () => {
     expect(ids(known.steps)).toEqual(["where", "day", "flights", "pick-lead", "pick", "quote", "pay-lead", "pay", "order", "done-lead", "receipt"]);
     expect(known.steps[0]).toMatchObject({ kind: "set", value: { from: "DXB", to: "CDG", toCity: "Paris" } });
     expect(known.steps.find((step) => step.id === "quote")).toMatchObject({
-      args: { booking: null, changes: [{ type: "book", flightId: "{{pick.flight.id}}", passenger: "Noor Haddad" }] },
+      args: { booking: null, changes: [{ type: "book", flightId: "{{pick.flight.id}}", passenger: "Uzair Khan" }] },
     });
 
     const noDay = plan([{ journey: "book", to: "CDG" }]);
@@ -297,7 +297,7 @@ describe("running the other journeys", () => {
     });
     expect(shown).toEqual(["flight-list", "seat-map", "price-summary"]);
     const flight = flightsOn("DXB", "CDG", "2026-10-16")[0];
-    expect(order?.booking).toMatchObject({ passenger: "Noor Haddad", flight: { id: flight.id }, paid: flight.price + 35 });
+    expect(order?.booking).toMatchObject({ passenger: "Uzair Khan", flight: { id: flight.id }, paid: flight.price + 35 });
     expect(order?.booking.code).toMatch(/^[A-Z2-9]{6}$/);
     expect(run.checks.every((check) => check.pass)).toBe(true);
     expect(run.checks[0].label).toBe(`You asked for Paris. ${flight.number} flies there.`);

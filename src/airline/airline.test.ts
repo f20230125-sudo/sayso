@@ -250,10 +250,10 @@ describe("pricing", () => {
 
   it("books a new flight", () => {
     const flight = flightsOn("DXB", "SIN", "2026-11-20")[0];
-    const priced = quoteFor(null, [{ type: "book", flightId: flight.id, passenger: "Noor Haddad" }]);
+    const priced = quoteFor(null, [{ type: "book", flightId: flight.id, passenger: "Uzair Khan" }]);
     if (!priced.ok) throw new Error(priced.message);
     expect(priced.quote.total).toBe(flight.price);
-    expect(priced.after).toMatchObject({ passenger: "Noor Haddad", seat: null, bags: 0, paid: flight.price });
+    expect(priced.after).toMatchObject({ passenger: "Uzair Khan", seat: null, bags: 0, paid: flight.price });
     expect(quoteFor(london, [{ type: "book", flightId: flight.id, passenger: "x" }])).toMatchObject({ ok: false, code: "bad_order" });
     expect(quoteFor(null, [{ type: "seat", seat: "1A" }])).toMatchObject({ ok: false, code: "bad_order" });
   });
@@ -290,7 +290,7 @@ describe("pricing", () => {
 
   it("gives a new booking a reference", () => {
     const flight = flightsOn("DXB", "CAI", "2026-11-20")[0];
-    const placed = placeOrder(null, [{ type: "book", flightId: flight.id, passenger: "Noor Haddad" }], flight.price, new Date("2026-10-06T10:00:00Z"));
+    const placed = placeOrder(null, [{ type: "book", flightId: flight.id, passenger: "Uzair Khan" }], flight.price, new Date("2026-10-06T10:00:00Z"));
     if (!placed.ok) throw new Error(placed.message);
     expect(placed.result.booking.code).toMatch(/^[A-Z2-9]{6}$/);
     expect(placed.result.receipt.bookingCode).toBe(placed.result.booking.code);
