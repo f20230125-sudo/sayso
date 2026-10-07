@@ -133,10 +133,11 @@ let turnCount = 0;
 
 type Understood = { understanding: Understanding; brain: Brain; model: string | null; understoodMs: number };
 
-function newTurn(words: string, understood: Understood): Turn {
+function newTurn(words: string, understood: Understood, startedAt: string): Turn {
   turnCount += 1;
   return {
     id: `turn-${Date.now().toString(36)}-${turnCount}`,
+    startedAt,
     words,
     ...understood,
     intents: [],
@@ -146,6 +147,7 @@ function newTurn(words: string, understood: Understood): Turn {
     streaming: false,
     marks: [],
     calls: [],
+    log: [],
     closing: null,
   };
 }
@@ -288,7 +290,7 @@ export const ask =
       }
     }
 
-    const turn = newTurn(words, { understanding, ...how });
+    const turn = newTurn(words, { understanding, ...how }, now);
     switch (understanding.kind) {
       case "request":
       case "amend": {

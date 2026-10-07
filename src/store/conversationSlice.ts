@@ -20,11 +20,20 @@ export type Mark = {
   by?: string;
 };
 
+/**
+ * One thing that happened in a turn, and when (milliseconds since 1970).
+ * Kept so the run can be laid out on a timeline afterwards: the events
+ * themselves say how long a call took, but not when it began.
+ */
+export type LogEntry = { at: number; type: RunEvent["type"] | "marked" | "closed"; stepId: string | null };
+
 /** One call to the API, kept for the "How it worked" panel. */
 export type CallRecord = { stepId: string; call: ToolCall; result: Json | null; failure: Failure | null };
 
 export type Turn = {
   id: string;
+  /** When the words were said, as an ISO time. Null for a turn saved before this was kept. */
+  startedAt: string | null;
   words: string;
   understanding: Understanding;
   brain: Brain;
@@ -44,6 +53,8 @@ export type Turn = {
   streaming: boolean;
   marks: Mark[];
   calls: CallRecord[];
+  /** What happened and when, in order. Empty for a turn saved before this was kept. */
+  log: LogEntry[];
   /** A last line for a journey that was left: "Left unfinished. Nothing was changed." */
   closing: string | null;
 };
@@ -104,6 +115,10 @@ const conversationSlice = createSlice({
       turn.run = reduceRun(turn.run, event);
       if (event.type === "tool-finished") turn.calls.push({ stepId: event.stepId, call: event.call, result: event.result, failure: null });
       if (event.type === "failed" && event.call) turn.calls.push({ stepId: event.stepId, call: event.call, result: null, failure: event.failure });
+    },
+    /** Something happened in a turn: the clock is read by the listener that dispatches this, not here. */
+    logged(state, action: PayloadAction<{ turnId: string; entry: LogEntry }>) {
+      state.turns.find((entry) => entry.id === action.payload.turnId)?.log.push(action.payload.entry);
     },
     /** The traveller said something that belongs to this turn's journey. */
     markAdded(state, action: PayloadAction<{ turnId: string; mark: Mark }>) {

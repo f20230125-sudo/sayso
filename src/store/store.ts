@@ -7,7 +7,7 @@ import {
   type UnknownAction,
 } from "@reduxjs/toolkit";
 import { accountReducer } from "./accountSlice";
-import { conversationReducer } from "./conversationSlice";
+import { conversationActions, conversationReducer, type LogEntry } from "./conversationSlice";
 import { save, type KeyValueStore } from "./persist";
 import { settingsReducer } from "./settingsSlice";
 import { uiReducer } from "./uiSlice";
@@ -53,6 +53,29 @@ export function makeStore(extra: Extra) {
       await listener.delay(SAVE_DELAY_MS);
       const { account, conversation } = listener.getState();
       if (account.account) save(extra.storage, { account: account.account, turns: conversation.turns });
+    },
+  });
+
+  // Note when each thing in a journey happened. Reducers must not read the clock,
+  // so it is read here, just after the thing has been applied.
+  const note = (turnId: string, type: LogEntry["type"], stepId: string | null) =>
+    conversationActions.logged({ turnId, entry: { at: extra.now().getTime(), type, stepId } });
+  startListening({
+    actionCreator: conversationActions.runEvent,
+    effect: ({ payload }, listener) => {
+      listener.dispatch(note(payload.turnId, payload.event.type, "stepId" in payload.event ? payload.event.stepId : null));
+    },
+  });
+  startListening({
+    actionCreator: conversationActions.markAdded,
+    effect: ({ payload }, listener) => {
+      listener.dispatch(note(payload.turnId, "marked", payload.mark.beforeStep));
+    },
+  });
+  startListening({
+    actionCreator: conversationActions.turnClosed,
+    effect: ({ payload }, listener) => {
+      listener.dispatch(note(payload.turnId, "closed", null));
     },
   });
 
