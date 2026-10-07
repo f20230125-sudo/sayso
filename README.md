@@ -111,6 +111,10 @@ sequenceDiagram
 
 Redux Toolkit holds the conversation, the account, the model settings and what is open on the page. The agent reports events; one reducer function (`reduceRun`) turns them into state, and the store, the agent and the tests all use that same function. React Context carries the theme and toasts.
 
+## See what it did, in Hindsight
+
+Every reply keeps when each thing in it happened. The **Open in Hindsight** button in the "How it worked" panel hands the run to [Hindsight](https://github.com/f20230125-sudo/hindsight) ([live](https://hindsight-sand.vercel.app)), an observer for agents, which draws it on a timeline: the calls to the airline, and the long bars where the traveller was deciding. In the recorded journeys, 92% of the time was the traveller. The run is handed over with `postMessage` addressed to Hindsight alone, and saved as a file if the new tab is blocked. The format is `src/agent/export.ts`.
+
 ## The model is optional
 
 The desk works with no model: rules understand the eight journeys and answer the commonest questions about cost from the airline's own facts.
