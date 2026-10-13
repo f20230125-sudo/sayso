@@ -93,7 +93,7 @@ test.describe("journeys", () => {
 
     await expect(receipt(page).getByText("Paid")).toBeVisible();
     await expect(receipt(page).getByRole("article", { name: "Dubai to London, Wed 14 Oct" })).toContainText(`Seat ${seat}`);
-    await expect(receipt(page).getByRole("article")).toContainText("2 checked bags");
+    await expect(receipt(page).getByRole("article")).toContainText("Checked bags 2");
     await expect(checks(page).getByRole("listitem")).toHaveCount(6);
     await expect(checks(page)).toContainText(`You asked for a window seat. ${seat} is one.`);
     await expect(checks(page).getByText("Differs:")).toHaveCount(0);

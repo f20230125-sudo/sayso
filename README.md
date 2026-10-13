@@ -44,6 +44,12 @@ Replies are built from fourteen components, all on the [gallery page](https://sa
 | --- | --- |
 | ![One receipt for three changes, with the checks under it](docs/screenshots/receipt-dark.png) | ![A boarding pass on a phone](docs/screenshots/phone.png) |
 
+## The look
+
+The desk is a docket of paper forms. The form you are filling is a boxed document; each one you answer folds into a single ruled line with your answer marked in highlighter, and that fold is the one thing that moves. The first screen is a real pass (your next trip) beside the sentences you can start from, and under each sentence is the list of components it builds. That list is not written by hand: it is the components of the sentence's real plan (`src/widgets/builds.ts`), and a unit test pins what it says.
+
+The type is B612, drawn for aircraft cockpit screens (SIL Open Font Licence, self-hosted at build by `next/font`): two weights, about 25 KB on the first screen. B612 Mono is only for text that is verbatim, such as the JSON tree, the calls and a booking code. Yellow is the desk's highlighter: always a fill under dark text, never a text colour or a border. Light and dark follow the system setting; the dark theme is a lifted sage, not black. `DESIGN.md` has the reasons and the colour values.
+
 ## How it works
 
 ![The desk partway through a request, with the "How it worked" panel open beside it](docs/screenshots/desk.png)
@@ -176,8 +182,8 @@ npm test                              # unit tests, Vitest
 npm run build && CI=1 npm run e2e     # end-to-end tests, Playwright, against the production build
 ```
 
-- **Unit tests** cover the airline (timetable, cabin, pricing, status), the four steps of the agent, the model path with a stand-in provider, and the store. They never touch the network: requests are handed straight to the real route handlers inside the test process, so a test of the agent also exercises the routes.
-- **End-to-end tests** drive the real app in a browser with the clock fixed: every journey by clicking and by typing, a reload halfway through, a failed call, the model path against a stand-in provider, the keyboard alone on the seat map, and a phone-sized screen.
+- **Unit tests** (374) cover the airline (timetable, cabin, pricing, status), the four steps of the agent, the model path with a stand-in provider, the store, and the line under each suggested sentence. They never touch the network: requests are handed straight to the real route handlers inside the test process, so a test of the agent also exercises the routes.
+- **End-to-end tests** (84) drive the real app in a browser with the clock fixed: every journey by clicking and by typing, a reload halfway through, a failed call, the model path against a stand-in provider, the keyboard alone on the seat map, where the focus goes after each choice, the first screen on a phone and in a small window, no sideways scrolling and no touch target under 24 px on every journey and the gallery, and what a link preview shows.
 - **Accessibility scans** (axe, WCAG 2.1 A and AA) run in both themes over every component and every state of the desk.
 
 All of it runs in CI on every push.

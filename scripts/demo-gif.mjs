@@ -23,14 +23,14 @@ const SENTENCE = "Move my London flight to next week, window seat, and add a bag
 function overlay() {
   const layer = document.createElement("div");
   layer.setAttribute("aria-hidden", "true");
-  layer.style.cssText = "position:fixed;inset:0;z-index:2147483647;pointer-events:none;font-family:ui-sans-serif,system-ui,sans-serif";
+  layer.style.cssText = "position:fixed;inset:0;z-index:2147483647;pointer-events:none;font-family:var(--font-b612),system-ui,sans-serif";
   layer.innerHTML = `
     <div id="demo-caption" style="position:absolute;left:50%;top:70px;transform:translateX(-50%);padding:8px 16px;
-      border-radius:12px;background:rgba(20,23,28,.96);color:#f3f5f8;font-size:15px;
-      font-weight:500;white-space:nowrap;box-shadow:0 10px 30px rgba(16,24,40,.25);display:none"></div>
+      border-radius:10px;background:#161a12;color:#fbfbf7;font-size:15px;
+      font-weight:700;white-space:nowrap;box-shadow:0 8px 24px rgba(22,26,18,.18);display:none"></div>
     <div id="demo-pointer" style="position:absolute;left:0;top:0;width:24px;height:24px;margin:-2px 0 0 -4px">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30"><path d="M5 3 L5 24 L11 18.5 L15 27 L19 25 L15 16.8 L23 16.8 Z"
-        fill="#14171c" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        fill="#161a12" stroke="#fbfbf7" stroke-width="1.8" stroke-linejoin="round"/></svg>
     </div>`;
   document.body.appendChild(layer);
   const pointer = document.getElementById("demo-pointer");
@@ -46,17 +46,23 @@ function overlay() {
 
 const browser = await chromium.launch();
 
-// --- The page preview image: the welcome page, at the size link previews use.
+// --- The page preview images: the welcome page and the gallery, at the size link previews use.
 {
-  const context = await browser.newContext({ viewport: { width: 1200, height: 630 }, colorScheme: "light", deviceScaleFactor: 1, timezoneId: "Asia/Dubai" });
+  // Drawn a little larger than the picture, so that a whole row of sentences fits, then scaled down to the preview size.
+  const context = await browser.newContext({ viewport: { width: 1333, height: 700 }, colorScheme: "light", deviceScaleFactor: 1, timezoneId: "Asia/Dubai" });
   const page = await context.newPage();
   await page.clock.setFixedTime(NOW);
   await page.goto(BASE);
   await page.getByRole("heading", { level: 1 }).waitFor();
   await page.waitForTimeout(700);
-  await page.screenshot({ path: "src/app/opengraph-image.png" });
-  await context.close();
+  await sharp(await page.screenshot()).resize(1200, 630).png().toFile("src/app/opengraph-image.png");
   console.log("saved src/app/opengraph-image.png");
+  await page.goto(`${BASE}/gallery`);
+  await page.getByRole("heading", { level: 1 }).waitFor();
+  await page.waitForTimeout(700);
+  await sharp(await page.screenshot()).resize(1200, 630).png().toFile("src/app/gallery/opengraph-image.png");
+  await context.close();
+  console.log("saved src/app/gallery/opengraph-image.png");
 }
 
 // --- The tour ---------------------------------------------------------------------

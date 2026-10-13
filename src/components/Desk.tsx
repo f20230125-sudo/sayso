@@ -13,18 +13,22 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { settingsActions } from "@/store/settingsSlice";
 import { ask, isBusy, startOver, stop } from "@/store/thunks";
 import { uiActions } from "@/store/uiSlice";
+import { buildsLine } from "@/widgets/builds";
 import { TripCard } from "@/widgets/TripCard";
 import { WIDGETS, type WidgetType } from "@/widgets/specs";
 import { AskBar } from "./AskBar";
+import { askInput, focusFirstIn, focusIsFree, requestHandOff, takeHandOff } from "./focus";
 import { HowItWorked } from "./HowItWorked";
+import { Logo } from "./Logo";
 import { SettingsDialog } from "./SettingsDialog";
 import { ThemeToggle } from "./ThemeToggle";
 import { useToast } from "./toast";
 import { Said, TurnView, Working } from "./TurnView";
 import { IconButton } from "./ui";
 
-// The whole page: a bar across the top, the conversation down the middle, and
-// one input at the bottom.
+// The whole page: a bar across the top, the conversation as a docket down the
+// left, and one input at the bottom. "How it worked" opens as a carbon copy at
+// the right.
 
 /** What the input suggests while a component waits: the same answer can be typed. */
 const WAITING_HINTS: Partial<Record<WidgetType, string>> = {
@@ -39,29 +43,33 @@ const WAITING_HINTS: Partial<Record<WidgetType, string>> = {
   "price-summary": 'Confirm above, or say "yes"',
 };
 
-function Logo() {
-  return (
-    <span className="flex items-center gap-2.5">
-      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-[13px] font-bold text-accent-fg" aria-hidden="true">
-        S
-      </span>
-      <span className="text-[15px] font-semibold tracking-tight">Sayso</span>
-    </span>
-  );
-}
+type Try = { words: string; builds: string | null };
 
-function Suggestions({ tries, onAsk }: { tries: string[]; onAsk: (words: string) => void }) {
+/** Each sentence, and under it the components it builds, worked out from the real plan. */
+function Suggestions({ tries, onAsk }: { tries: Try[]; onAsk: (words: string) => void }) {
   return (
-    <ul className="flex flex-wrap gap-2" aria-label="Things to try">
-      {tries.map((words) => (
-        <li key={words}>
+    <ul aria-label="Things to try">
+      {tries.map(({ words, builds }, index) => (
+        <li
+          key={words}
+          className="relative border-b border-rule transition-colors duration-150 first:border-t hover:bg-paper has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ink"
+        >
+          {/* The whole row answers a click: the button's own box stretches over it. */}
           <button
             type="button"
             onClick={() => onAsk(words)}
-            className="rounded-full border border-line bg-surface px-3.5 py-1.5 text-[13px] text-muted transition-colors hover:border-line-strong hover:text-fg"
+            aria-describedby={builds ? `builds-${index}` : undefined}
+            className="block min-h-14 w-full px-1 pt-3 text-left text-[17px] leading-snug after:absolute after:inset-0 after:content-[''] focus-visible:outline-none"
           >
             {words}
           </button>
+          {builds ? (
+            <p id={`builds-${index}`} className="px-1 pb-3 pt-0.5 text-[13px] leading-snug text-ink-3">
+              {builds}
+            </p>
+          ) : (
+            <div className="pb-3" />
+          )}
         </li>
       ))}
     </ul>
@@ -71,26 +79,32 @@ function Suggestions({ tries, onAsk }: { tries: string[]; onAsk: (words: string)
 function Welcome({ account, today, onAsk }: { account: Account; today: string; onAsk: (words: string) => void }) {
   const [next] = upcoming(account, today);
   const first = account.traveller.name.split(" ")[0];
+  const tries = useMemo(() => {
+    const now = new Date();
+    return suggestions(account, today, now).map((words) => ({ words, builds: buildsLine(words, account, today, now) }));
+  }, [account, today]);
+
   return (
-    <div className="flex flex-col gap-8 pt-6 sm:pt-12">
-      <header className="rise-in">
-        <div className="eyebrow mb-3">{AIRLINE.name} · demo desk</div>
-        <h1 className="text-[34px] font-semibold leading-[1.1] tracking-tight sm:text-[40px]">Hello, {first}.</h1>
-        <p className="mt-3 max-w-md text-[17px] leading-relaxed text-muted">
-          Say what you need in your own words. The right screen for it builds itself here.
-        </p>
-      </header>
+    // The columns follow the room this has, not the screen: with "How it worked" open there is less of it.
+    <div className="@container">
+      <div className="grid gap-y-6 pt-2 sm:gap-y-8 sm:pt-8 @min-[700px]:grid-cols-2 @min-[700px]:grid-rows-[auto_1fr] @min-[700px]:gap-x-8 @min-[700px]:[grid-template-areas:'head_pass'_'list_pass'] @min-[1000px]:gap-x-12 @min-[1150px]:grid-cols-[minmax(0,600px)_minmax(0,1fr)] @min-[1150px]:gap-x-16">
+        <header className="@min-[700px]:[grid-area:head]">
+          <h1 className="text-[38px] font-bold leading-[1.04] tracking-[-0.02em] sm:text-[52px]">Hello, {first}.</h1>
+          <p className="mt-3 max-w-[31ch] text-[16px] leading-[1.5] text-ink-2 sm:mt-4 sm:text-[18px]">
+            Say what you need in your own words. The right screen for it builds itself here.
+          </p>
+        </header>
 
-      {next ? (
-        <div className="rise-in" style={{ animationDelay: "60ms" }}>
-          <div className="eyebrow mb-2.5">Your next trip</div>
-          <TripCard booking={next} />
-        </div>
-      ) : null}
+        {next ? (
+          <div className="@min-[700px]:[grid-area:pass]">
+            <TripCard booking={next} hero />
+          </div>
+        ) : null}
 
-      <div className="rise-in" style={{ animationDelay: "120ms" }}>
-        <div className="eyebrow mb-2.5">Try asking</div>
-        <Suggestions tries={suggestions(account, today, new Date())} onAsk={onAsk} />
+        <section className="@min-[700px]:[grid-area:list]">
+          <h2 className="mb-1.5 text-[15px] font-bold">Or start from one of these</h2>
+          <Suggestions tries={tries} onAsk={onAsk} />
+        </section>
       </div>
     </div>
   );
@@ -111,6 +125,7 @@ export function Desk() {
   const last = turns.at(-1);
   const waiting = waitingStep(last?.run ?? null);
   const shownInPanel = turns.find((turn) => turn.id === panelTurn) ?? last ?? null;
+  const welcome = turns.length === 0 && !pending;
 
   // One short line for screen readers each time the page changes, so a new
   // component is announced without reading all of it out.
@@ -140,44 +155,56 @@ export function Desk() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [progress]);
 
+  // A component was answered by touching it, and the next one has arrived: the
+  // keyboard goes with it, unless the traveller has gone somewhere else.
+  const waitingId = waiting?.id ?? null;
+  useEffect(() => {
+    if (!waitingId || !takeHandOff()) return;
+    const open = document.querySelectorAll("[data-widget-active]");
+    const form = open.item(open.length - 1);
+    if (form && focusIsFree(form)) focusFirstIn(form);
+  }, [waitingId]);
+
   const onAsk = (words: string) => void dispatch(ask(words));
+  // A sentence was chosen from the list, which is about to leave: the keyboard goes to the ask bar, then on to the first form.
+  const onTry = (words: string) => {
+    requestHandOff();
+    askInput()?.focus();
+    onAsk(words);
+  };
+
+  const column = `mx-auto w-full max-w-[1280px] px-5 md:px-10 ${panelOpen ? "xl:pl-[120px]" : ""}`;
 
   return (
     <div className="flex h-dvh flex-col">
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-line bg-bg px-4 sm:px-6">
-        <Logo />
-        <div className="flex items-center gap-1">
-          {account ? (
-            <span className="mr-2 hidden items-center gap-2 text-[13px] text-muted sm:flex">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-surface-2 text-[11px] font-semibold text-fg" aria-hidden="true">
-                {account.traveller.name
-                  .split(" ")
-                  .map((part) => part[0])
-                  .join("")}
-              </span>
-              {account.traveller.name}
-            </span>
-          ) : null}
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-rule bg-floor px-3 sm:px-6">
+        <div className="flex items-center gap-4 pl-1">
+          <Logo />
+          <span className="hidden text-[14px] text-ink-3 sm:inline">{AIRLINE.name} demo desk</span>
+        </div>
+        <div className="flex items-center gap-0.5 sm:gap-1">
+          {account ? <span className="mr-3 hidden text-[14px] text-ink-2 sm:inline">{account.traveller.name}</span> : null}
           <IconButton
+            id="how-toggle"
             label={panelOpen ? "Close how it worked" : "How it worked"}
             aria-pressed={panelOpen}
-            className={panelOpen ? "bg-surface-2 text-fg" : ""}
+            className={panelOpen ? "bg-ink text-paper hover:bg-ink hover:text-paper" : ""}
             onClick={() => dispatch(panelOpen ? uiActions.panelClosed() : uiActions.panelOpened(null))}
           >
-            <ListTree size={16} />
+            <ListTree size={18} />
           </IconButton>
           <Link
             href="/gallery"
             aria-label="Component gallery"
             title="Component gallery"
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface-2 hover:text-fg"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-control text-ink-2 transition-colors duration-150 hover:bg-paper-2 hover:text-ink"
           >
-            <LayoutGrid size={16} />
+            <LayoutGrid size={18} />
           </Link>
           <IconButton label={model ? `Language model: ${model}` : "Language model: none, built-in rules only"} onClick={() => dispatch(settingsActions.settingsOpened())}>
             <span className="relative">
-              <Sparkles size={16} />
-              {model ? <span className="absolute -right-1 -top-1 h-1.5 w-1.5 rounded-full bg-ok" aria-hidden="true" /> : null}
+              <Sparkles size={18} />
+              {model ? <span className="absolute -right-1.5 -top-1.5 h-2 w-2 rounded-[2px] border border-mark-edge bg-mark" aria-hidden="true" /> : null}
             </span>
           </IconButton>
           <IconButton
@@ -187,7 +214,7 @@ export function Desk() {
               showToast("Started over with fresh demo trips.");
             }}
           >
-            <RotateCcw size={16} />
+            <RotateCcw size={18} />
           </IconButton>
           <ThemeToggle />
         </div>
@@ -195,40 +222,54 @@ export function Desk() {
 
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col">
-          <main className="min-h-0 flex-1 overflow-y-auto">
-            <div className="mx-auto flex w-full max-w-[680px] flex-col gap-12 px-5 pb-10 pt-8">
-              {!account ? null : turns.length === 0 && !pending ? (
-                <Welcome account={account} today={today} onAsk={onAsk} />
+          <main id="main" tabIndex={-1} className="min-h-0 flex-1 overflow-y-auto focus-visible:outline-none">
+            <div className={`${column} pb-10 pt-6 sm:pt-8`}>
+              {!account ? null : welcome ? (
+                <Welcome account={account} today={today} onAsk={onTry} />
               ) : (
-                turns.map((turn) => <TurnView key={turn.id} turn={turn} />)
+                <div className="flex max-w-[800px] flex-col gap-12">
+                  <h1 className="sr-only">Your conversation with the {AIRLINE.name} desk</h1>
+                  {turns.map((turn) => (
+                    <TurnView key={turn.id} turn={turn} />
+                  ))}
+                  {pending ? (
+                    <section className="flex flex-col gap-4" aria-label={`You said: ${pending.words}`}>
+                      <Said words={pending.words} />
+                      <Working label={`Asking ${model ?? "the model"} what that means`} />
+                    </section>
+                  ) : null}
+                </div>
               )}
-              {pending ? (
-                <section className="flex flex-col gap-4" aria-label={`You said: ${pending.words}`}>
-                  <Said words={pending.words} />
-                  <Working label={`Asking ${model ?? "the model"} what that means`} />
-                </section>
-              ) : null}
               <div ref={end} aria-hidden="true" />
             </div>
           </main>
 
-          <div className="shrink-0 bg-bg px-5 pb-5 pt-2">
-            <div className="mx-auto w-full max-w-[680px]">
-              <AskBar
-                busy={busy}
-                hint={waiting ? (WAITING_HINTS[waiting.widget] ?? "Choose above, or say what you need") : "Say what you need"}
-                onAsk={onAsk}
-                onStop={() => dispatch(stop())}
-              />
-              <p className="mt-2 text-center text-[11px] text-faint">A demo. {AIRLINE.name} is made up and nothing here is really booked or charged.</p>
+          <div className="shrink-0 bg-floor pb-4 pt-2 sm:pb-5">
+            <div className={column}>
+              <div className={welcome ? (panelOpen ? "max-w-[600px]" : "min-[780px]:max-w-[calc(50%-1rem)] min-[1020px]:max-w-[calc(50%-1.5rem)] min-[1230px]:max-w-[600px]") : "max-w-[800px]"}>
+                <AskBar
+                  busy={busy}
+                  hint={waiting ? (WAITING_HINTS[waiting.widget] ?? "Choose above, or say what you need") : "Say what you need"}
+                  onAsk={onAsk}
+                  onStop={() => dispatch(stop())}
+                />
+                <p className="mt-2 text-[12.5px] leading-snug text-ink-3">A demo. {AIRLINE.name} is made up and nothing here is really booked or charged.</p>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Beside the conversation on a wide screen, over it on a narrow one. */}
+        {/* The carbon copy: beside the conversation on a wide screen, over it on a narrow one. */}
         {panelOpen ? (
-          <div className="fixed inset-0 z-40 lg:static lg:z-auto lg:w-[400px] lg:shrink-0 lg:border-l lg:border-line">
-            <HowItWorked turn={shownInPanel} onClose={() => dispatch(uiActions.panelClosed())} />
+          <div className="fixed inset-0 z-40 bg-paper-2 lg:static lg:z-auto lg:w-[400px] lg:shrink-0 lg:border-l-2 lg:border-dashed lg:border-edge">
+            <HowItWorked
+              turn={shownInPanel}
+              onClose={() => {
+                dispatch(uiActions.panelClosed());
+                // The button that closes it leaves with it: the keyboard goes back to the one that opens it.
+                document.getElementById("how-toggle")?.focus();
+              }}
+            />
           </div>
         ) : null}
       </div>

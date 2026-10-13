@@ -1,6 +1,7 @@
 "use client";
 
-import { Check, Circle, CircleAlert, CircleCheck, CircleDot, ExternalLink, Minus, X } from "lucide-react";
+import { Check, Circle, CircleAlert, CircleDot, ExternalLink, Minus, X } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { describeIntent, describeStep, describeUnderstanding, progressOf, type StepProgress } from "@/agent/describe";
 import { exportTurn } from "@/agent/export";
 import type { Json } from "@/agent/reference";
@@ -13,15 +14,16 @@ import { Button, IconButton } from "./ui";
 // The four steps behind one reply, shown as they went: what was understood,
 // the plan, each call to the airline's API with the data that came back, and
 // the checks at the end. Nothing here is made up for show. It is read from the
-// same run that drew the reply.
+// same run that drew the reply. It is the carbon copy of the form: ruled
+// blocks on a darker sheet, not a dashboard.
 
 function Section({ number, title, note, children }: { number: number; title: string; note?: string; children: React.ReactNode }) {
   return (
-    <section className="border-t border-line px-5 py-4">
+    <section className="border-t border-rule px-5 py-4">
       <h3 className="mb-3 flex items-baseline gap-2.5">
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-soft font-mono text-[11px] font-semibold text-accent">{number}</span>
-        <span className="text-[14px] font-semibold">{title}</span>
-        {note ? <span className="tabular ml-auto text-[12px] text-faint">{note}</span> : null}
+        <span className="text-[15px] font-bold text-ink-2">{number}</span>
+        <span className="text-[15px] font-bold">{title}</span>
+        {note ? <span className="ml-auto text-[12.5px] text-ink-2">{note}</span> : null}
       </h3>
       {children}
     </section>
@@ -29,11 +31,11 @@ function Section({ number, title, note, children }: { number: number; title: str
 }
 
 const PROGRESS_ICON: Record<StepProgress, React.ReactNode> = {
-  done: <Check size={13} className="text-ok" />,
-  now: <CircleDot size={13} className="text-accent" />,
-  failed: <CircleAlert size={13} className="text-bad" />,
-  left: <Minus size={13} className="text-faint" />,
-  "to do": <Circle size={13} className="text-line-strong" />,
+  done: <Check size={14} strokeWidth={2.5} className="text-ink" />,
+  now: <CircleDot size={14} className="text-ink" />,
+  failed: <CircleAlert size={14} className="text-bad" />,
+  left: <Minus size={14} className="text-ink-2" />,
+  "to do": <Circle size={14} className="text-edge" />,
 };
 
 const PROGRESS_WORD: Record<StepProgress, string> = { done: "done", now: "now", failed: "failed", left: "left", "to do": "to do" };
@@ -43,22 +45,26 @@ function time(ms: number): string {
   return ms >= 1000 ? `${(ms / 1000).toFixed(1)} s` : `${ms} ms`;
 }
 
+/** One call to the airline: the method and address as sent, how it went, and the data on either side. */
 function Call({ record }: { record: CallRecord }) {
   const { call, result, failure } = record;
   const ok = call.status >= 200 && call.status < 300;
   return (
-    <li className="rounded-xl border border-line bg-surface">
-      <div className="flex items-start gap-2 px-3 pt-2.5">
-        <span className="mt-px shrink-0 rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-muted">{call.method}</span>
+    <li className="doc overflow-hidden">
+      <div className="flex items-start gap-2 px-3 pt-3">
+        <span className="mt-px shrink-0 rounded-seat border border-edge bg-paper-2 px-1.5 py-0.5 font-mono text-[12px] font-bold text-ink-2">{call.method}</span>
         <code className="min-w-0 flex-1 break-all font-mono text-[12px] leading-5">{call.url}</code>
       </div>
-      <div className="tabular flex items-center gap-3 px-3 pb-2 pt-1 text-[12px]">
-        <span className={ok ? "text-ok" : "text-bad"}>{call.status}</span>
-        <span className="text-faint">{time(call.ms)}</span>
-        {failure ? <span className="min-w-0 truncate text-bad">{failure.message}</span> : null}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 pb-2.5 pt-1.5 text-[12.5px]">
+        <span className={`flex items-center gap-1 font-bold ${ok ? "text-ink" : "text-bad"}`}>
+          {ok ? <Check size={13} strokeWidth={2.5} aria-hidden="true" /> : <CircleAlert size={13} aria-hidden="true" />}
+          {call.status}
+        </span>
+        <span className="text-ink-3">{time(call.ms)}</span>
+        {failure ? <span className="min-w-0 text-bad">{failure.message}</span> : null}
       </div>
       {call.body !== undefined || result !== null ? (
-        <div className="border-t border-line px-2 py-1.5">
+        <div className="border-t border-rule px-2 py-1.5">
           {call.body !== undefined ? <JsonTree value={call.body} label="sent" openDepth={0} /> : null}
           {result !== null ? <JsonTree value={result as Json} label="came back" openDepth={0} /> : null}
         </div>
@@ -69,6 +75,12 @@ function Call({ record }: { record: CallRecord }) {
 
 export function HowItWorked({ turn, onClose }: { turn: Turn | null; onClose: () => void }) {
   const { showToast } = useToast();
+  const heading = useRef<HTMLHeadingElement>(null);
+
+  // The panel has just opened: the keyboard starts at its top, not behind the conversation.
+  useEffect(() => {
+    heading.current?.focus();
+  }, []);
 
   /** Hands the run to Hindsight, an observer for agents. Called from the click, so the new tab is not blocked. */
   const openInHindsight = (shown: Turn) => {
@@ -79,9 +91,11 @@ export function HowItWorked({ turn, onClose }: { turn: Turn | null; onClose: () 
   };
 
   return (
-    <aside className="flex h-full flex-col bg-bg" aria-label="How it worked">
+    <aside className="flex h-full flex-col" aria-label="How it worked">
       <header className="flex h-14 shrink-0 items-center justify-between gap-3 px-5">
-        <h2 className="eyebrow">How it worked</h2>
+        <h2 ref={heading} tabIndex={-1} className="text-[16px] font-bold focus-visible:outline-none">
+          How it worked
+        </h2>
         <div className="flex items-center gap-1">
           {turn ? (
             <Button size="sm" variant="ghost" onClick={() => openInHindsight(turn)}>
@@ -90,41 +104,41 @@ export function HowItWorked({ turn, onClose }: { turn: Turn | null; onClose: () 
             </Button>
           ) : null}
           <IconButton label="Close how it worked" onClick={onClose}>
-            <X size={16} />
+            <X size={18} />
           </IconButton>
         </div>
       </header>
 
       {!turn ? (
-        <p className="border-t border-line px-5 py-4 text-[14px] leading-relaxed text-muted">
+        <p className="border-t border-rule px-5 py-4 text-[14px] leading-relaxed text-ink-2">
           Ask for something, and this panel shows the four steps behind the reply: what was understood, the plan, each call to the airline, and the checks.
         </p>
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto pb-6">
-          <p className="px-5 pb-4 text-[15px] font-medium leading-snug">“{turn.words}”</p>
+          <p className="px-5 pb-4 text-[16px] font-bold leading-snug">“{turn.words}”</p>
 
           <Section number={1} title="Understand" note={time(turn.understoodMs)}>
-            <p className="mb-2.5 text-[13px] text-muted">
+            <p className="mb-2.5 text-[13px] text-ink-2">
               {turn.brain === "model" && turn.model ? `Read by ${turn.model}, after the built-in rules could not.` : "Read by the built-in rules. No model was asked."}
             </p>
             {turn.intents.length > 0 ? (
-              <ul className="flex flex-col gap-2">
+              <ul className="border-t border-rule">
                 {turn.intents.map((intent) => {
                   const { journey, details } = describeIntent(intent);
                   return (
-                    <li key={intent.journey} className="rounded-xl border border-line bg-surface px-3 py-2.5">
-                      <div className="text-[13px] font-medium">{journey}</div>
+                    <li key={intent.journey} className="border-b border-rule py-2.5">
+                      <div className="text-[14px] font-bold">{journey}</div>
                       {details.length > 0 ? (
-                        <dl className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[12px]">
+                        <dl className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[13px]">
                           {details.map((detail) => (
                             <div key={detail.name} className="flex gap-1.5">
-                              <dt className="text-faint">{detail.name}</dt>
+                              <dt className="text-ink-2">{detail.name}</dt>
                               <dd>{detail.value}</dd>
                             </div>
                           ))}
                         </dl>
                       ) : (
-                        <div className="mt-1 text-[12px] text-faint">No details given.</div>
+                        <div className="mt-1 text-[13px] text-ink-2">No details given.</div>
                       )}
                     </li>
                   );
@@ -134,7 +148,7 @@ export function HowItWorked({ turn, onClose }: { turn: Turn | null; onClose: () 
               <p className="text-[13px]">{describeUnderstanding(turn.understanding)}.</p>
             )}
             {turn.marks.length > 0 ? (
-              <p className="mt-2.5 text-[12px] text-faint">Said partway: {turn.marks.map((mark) => `“${mark.words}”`).join(", ")}</p>
+              <p className="mt-2.5 text-[13px] text-ink-2">Said partway: {turn.marks.map((mark) => `“${mark.words}”`).join(", ")}</p>
             ) : null}
           </Section>
 
@@ -146,13 +160,13 @@ export function HowItWorked({ turn, onClose }: { turn: Turn | null; onClose: () 
                     const { kind, text } = describeStep(step);
                     const progress = progressOf(turn.run!, index);
                     return (
-                      <li key={step.id} className={`flex items-start gap-2 text-[12.5px] leading-5 ${progress === "to do" || progress === "left" ? "text-muted" : ""}`}>
+                      <li key={step.id} className={`flex items-start gap-2 text-[13px] leading-5 ${progress === "to do" || progress === "left" ? "text-ink-2" : ""}`}>
                         <span className="mt-[3px] shrink-0" aria-hidden="true">
                           {PROGRESS_ICON[progress]}
                         </span>
-                        <span className="w-9 shrink-0 font-mono text-[10px] uppercase leading-5 tracking-wide text-faint">{kind}</span>
+                        <span className="w-10 shrink-0 text-ink-2">{kind}</span>
                         <span className="min-w-0 flex-1">
-                          {text}
+                          <span className={progress === "now" ? "stroke" : ""}>{text}</span>
                           <span className="sr-only"> ({PROGRESS_WORD[progress]})</span>
                         </span>
                       </li>
@@ -167,13 +181,13 @@ export function HowItWorked({ turn, onClose }: { turn: Turn | null; onClose: () 
                 note={turn.calls.length > 0 ? `${turn.calls.length} ${turn.calls.length === 1 ? "call" : "calls"}, ${time(turn.calls.reduce((sum, record) => sum + record.call.ms, 0))}` : undefined}
               >
                 {turn.calls.length > 0 ? (
-                  <ul className="flex flex-col gap-2">
+                  <ul className="flex flex-col gap-3">
                     {turn.calls.map((record, index) => (
                       <Call key={`${record.stepId}-${index}`} record={record} />
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-[13px] text-muted">No calls to the airline yet.</p>
+                  <p className="text-[13px] text-ink-2">No calls to the airline yet.</p>
                 )}
               </Section>
 
@@ -181,18 +195,18 @@ export function HowItWorked({ turn, onClose }: { turn: Turn | null; onClose: () 
                 {turn.run.checks.length > 0 ? (
                   <ul className="flex flex-col gap-1.5">
                     {turn.run.checks.map((check) => (
-                      <li key={check.label} className="flex items-start gap-2 text-[12.5px] leading-5">
+                      <li key={check.label} className="flex items-start gap-2 text-[13px] leading-5">
                         {check.pass ? (
-                          <CircleCheck size={13} className="mt-[3px] shrink-0 text-ok" aria-hidden="true" />
+                          <Check size={14} strokeWidth={2.5} className="mt-[3px] shrink-0 text-ink" aria-hidden="true" />
                         ) : (
-                          <CircleAlert size={13} className="mt-[3px] shrink-0 text-warn" aria-hidden="true" />
+                          <CircleAlert size={14} className="mt-[3px] shrink-0 text-warn" aria-hidden="true" />
                         )}
                         {check.label}
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-[13px] text-muted">
+                  <p className="text-[13px] text-ink-2">
                     {turn.run.status === "done" ? "Nothing was changed, so there was nothing to check." : "The checks run once the journey is finished."}
                   </p>
                 )}
